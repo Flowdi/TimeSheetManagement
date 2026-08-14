@@ -1,0 +1,14 @@
+[project]
+name = "timesheet-management"
+version = "0.1.0"
+description = "Lokale Arbeitszeiterfassung mit vorbereitetem Google-Workflow"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+timesheet-management = "timesheet.app:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
