@@ -95,8 +95,13 @@ class TimeSheetApp(tk.Tk):
         self.style.configure("TLabel", **common, font=("Segoe UI", 10))
         self.style.configure("Title.TLabel", **common, font=("Segoe UI", 20, "bold"))
         self.style.configure("Heading.TLabel", **common, font=("Segoe UI", 12, "bold"))
-        self.style.configure("Muted.TLabel", **common, foreground=colors["muted"])
-        self.style.configure("Warning.TLabel", **common, foreground=colors["danger"], font=("Segoe UI", 11, "bold"))
+        self.style.configure(
+            "Muted.TLabel", background=colors["bg"], foreground=colors["muted"]
+        )
+        self.style.configure(
+            "Warning.TLabel", background=colors["bg"], foreground=colors["danger"],
+            font=("Segoe UI", 11, "bold")
+        )
         self.style.configure(
             "TButton", background=colors["surface"], foreground=colors["text"],
             bordercolor=colors["accent"], lightcolor=colors["accent"], darkcolor=colors["accent"],
@@ -117,7 +122,10 @@ class TimeSheetApp(tk.Tk):
         self.style.configure("Treeview.Heading", background=colors["surface_alt"], foreground=colors["accent"], bordercolor=colors["accent"], font=("Segoe UI", 10, "bold"))
         self.style.map("Treeview", background=[("selected", colors["selected"])], foreground=[("selected", colors["text"])])
         self.style.configure("TLabelframe", background=colors["bg"], bordercolor=colors["accent"], relief="solid", borderwidth=1)
-        self.style.configure("TLabelframe.Label", **common, foreground=colors["accent"], font=("Segoe UI", 10, "bold"))
+        self.style.configure(
+            "TLabelframe.Label", background=colors["bg"], foreground=colors["accent"],
+            font=("Segoe UI", 10, "bold")
+        )
         self.style.configure("TPanedwindow", background=colors["bg"])
 
     def add_theme_selector(self, parent):
