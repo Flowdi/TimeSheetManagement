@@ -5,8 +5,8 @@ Projekt verbindet eine unkomplizierte Windows-Desktop-Anwendung mit einem
 langfristig geplanten Google-Workflow für Tabellen, E-Mail-Kommunikation,
 Genehmigungen und Auswertungen.
 
-> **Projektstatus:** frühe MVP-Version. Die Kernfunktionen arbeiten lokal. Die
-> Google-Anbindung ist architektonisch vorbereitet, aber noch nicht aktiviert.
+> **Projektstatus:** frühe MVP-Version. Die Kernfunktionen arbeiten lokal. Ein
+> optionaler Google-Sheets-Sync ist verfügbar; Gmail folgt in einer späteren Phase.
 
 ## Vision
 
@@ -116,6 +116,19 @@ nachvollziehbar.
 - jederzeit wechselbarer Light Mode
 - persistente Darstellungseinstellung pro Windows-Arbeitsplatz
 
+### Google Sheets
+
+- Verbindung zu einem vorhandenen Spreadsheet über dessen ID oder URL
+- OAuth-2.0-Anmeldung ohne Speicherung eines Google-Passworts
+- automatisch eine eigene Registerkarte pro Mitarbeiter
+- automatisch formatierte Kopfzeile und Spaltenbreiten
+- genau eine Zeile je Mitarbeiter und Datum
+- erneuter Sync aktualisiert die vorhandene Tageszeile statt sie zu duplizieren
+- automatische Aktualisierung nach Arbeitszeitbuchungen
+- automatische Aktualisierung nach genehmigten Korrekturen
+- manueller Komplettsync aller lokal vorhandenen Arbeitstage
+- lokale Zeiterfassung bleibt auch ohne Google-Verbindung nutzbar
+
 ## Schnellstart
 
 ### Voraussetzungen
@@ -130,7 +143,13 @@ Python-Version installiert und als lokale oder globale Version ausgewählt werde
 
 ### Anwendung starten
 
-PowerShell im Projektordner öffnen und ausführen:
+Beim ersten Mal die Python- und Google-Abhängigkeiten installieren:
+
+```powershell
+.\install.ps1
+```
+
+Danach die Anwendung starten:
 
 ```powershell
 .\run.ps1
@@ -211,34 +230,62 @@ src/timesheet/
 ├── database.py        SQLite-Schema und Transaktionszugriff
 ├── service.py         Regeln, Berechnungen und Anwendungslogik
 ├── security.py        Passwort-Hashing und Passwortprüfung
-└── google_gateway.py  vorbereitete Grenze zur Google-Integration
+├── google_gateway.py  OAuth und Google-Sheets-Synchronisierung
+└── settings.py        atomare lokale Anwendungseinstellungen
 ```
 
 Die Trennung zwischen Oberfläche, Geschäftslogik und Datenbank erleichtert es,
 später eine andere Oberfläche, Google Sheets oder einen Hintergrunddienst
 anzubinden, ohne die Arbeitszeitregeln neu schreiben zu müssen.
 
-## Google-Integration: geplantes Konzept
+## Google-Integration
 
 Google wird ausschließlich über OAuth 2.0 angebunden. Ein normales
 Google-Kontopasswort ist dafür weder erforderlich noch zulässig.
 
 ### Google Sheets
 
-Geplant ist eine Arbeitsmappe mit getrennten, maschinenlesbaren Tabellen:
+Der aktuelle Sync verwendet pro Mitarbeiter eine Registerkarte. Der Anzeigename
+des Mitarbeiters wird als Registerkartenname verwendet; für Google unzulässige
+Zeichen werden dabei sicher ersetzt.
 
-- `Employees`
-- `TimeEvents`
-- `Absences`
-- `Corrections`
-- `Approvals`
-- `Settings`
-- `SyncLog`
+| Spalte | Inhalt |
+|---|---|
+| Datum | eindeutiger Schlüssel der Tageszeile |
+| Arbeitsbeginn | erste Startbuchung des Tages |
+| Arbeitsende | letzte Endbuchung des Tages |
+| Pause (Min.) | gesamte erfasste Pausenzeit |
+| Arbeitszeit | berechnete Nettoarbeitszeit |
+| Überstunden | Differenz zu acht Sollstunden |
+| Status | Arbeitet, Pause oder Beendet |
+| Warnungen | Pausen- und Arbeitszeitverstöße |
+| Synchronisiert am | Zeitpunkt der letzten Aktualisierung |
 
-SQLite bleibt dabei als lokaler Cache und sichere Warteschlange erhalten. Bei
-vorübergehend fehlender Internetverbindung können Buchungen lokal fortgesetzt
-und später synchronisiert werden. Konflikte sollen nicht still überschrieben,
-sondern markiert und administrativ geklärt werden.
+Beim Sync liest die Anwendung die vorhandenen Datumswerte der Registerkarte. Ist
+das Datum schon vorhanden, wird die betreffende Zeile aktualisiert. Andernfalls
+wird eine neue Zeile angelegt. Die dafür verwendeten Google-API-Operationen sind
+`spreadsheets.get`, `spreadsheets.batchUpdate`, `values.get` und `values.update`.
+
+SQLite bleibt die lokale Datenquelle. Bei fehlendem Internet werden Buchungen
+weiterhin lokal gespeichert. Über `Alles synchronisieren` können sämtliche
+lokalen Arbeitstage später erneut übertragen werden.
+
+### Einrichtung in der Anwendung
+
+1. Im Google-Cloud-Projekt Gmail noch nicht, aber die Google Sheets API aktivieren.
+2. Einen OAuth-Client vom Typ `Desktop-App` erstellen.
+3. Die Clientdatei als `credentials.json` herunterladen.
+4. Das vorhandene Google Spreadsheet öffnen und dessen URL kopieren.
+5. In TimeSheet Management als Administrator anmelden.
+6. Unter `Administration > Google Sheets` die Spreadsheet-URL einfügen.
+7. Über `Datei wählen` die lokale `credentials.json` auswählen.
+8. `Speichern` und anschließend `Verbinden / testen` wählen.
+9. Die Google-Freigabe im Browser bestätigen.
+10. Optional `Alles synchronisieren` ausführen.
+
+Das erzeugte Zugriffstoken wird unter
+`%LOCALAPPDATA%\TimeSheetManagement\token.json` gespeichert und nicht in Git
+übernommen.
 
 ### Gmail
 
@@ -258,13 +305,12 @@ Nachrichten können anhand dieser ID erkannt werden.
 ### Voraussetzungen für die spätere Aktivierung
 
 1. Google-Cloud-Projekt anlegen
-2. Gmail API aktivieren
-3. Google Sheets API aktivieren
+2. Google Sheets API aktivieren
 4. OAuth-Zustimmungsbildschirm konfigurieren
 5. OAuth-Client vom Typ `Desktop-App` erstellen
 6. `credentials.json` nur lokal bereitstellen
 7. Ziel-Sheet anlegen und dessen ID konfigurieren
-8. benötigte Berechtigungen nach dem Prinzip der geringsten Rechte freigeben
+8. ausschließlich den Sheets-OAuth-Scope freigeben
 
 `credentials.json`, OAuth-Tokens und Kennwörter dürfen niemals committed werden.
 
@@ -330,9 +376,12 @@ Aktuell geprüft werden:
 
 ### Phase 2 – Google Sheets und Gmail
 
-- [ ] OAuth-Einrichtungsassistent
-- [ ] Google-Sheets-Struktur automatisch anlegen
-- [ ] bidirektionaler Sync mit lokaler Warteschlange
+- [x] OAuth-Verbindung über den Adminbereich
+- [x] Mitarbeiter-Registerkarten automatisch anlegen
+- [x] Tageszeilen idempotent aktualisieren
+- [x] manueller Komplettsync
+- [ ] dauerhaft fehlertolerante Sync-Warteschlange
+- [ ] bidirektionaler Sync und Konfliktansicht
 - [ ] strukturierte Gmail-Benachrichtigungen
 - [ ] Idempotenz und Konfliktbehandlung
 - [ ] Syncstatus in der Oberfläche
@@ -381,7 +430,11 @@ Nutzen, Datenschutz und Wartungsaufwand priorisiert werden.
 
 ## Bekannte Einschränkungen der ersten Version
 
-- Google-Sync und Gmail-Versand sind noch deaktiviert.
+- Gmail-Versand ist noch deaktiviert.
+- Der Google-Sync ist derzeit einseitig von SQLite zu Sheets; Änderungen direkt
+  im Sheet werden nicht zurückgelesen.
+- Fehlgeschlagene automatische Syncs werden angezeigt, aber noch nicht in einer
+  dauerhaften Warteschlange einzeln protokolliert.
 - Feiertage werden noch nicht automatisch angelegt.
 - Sollstunden sind noch fest auf acht Stunden pro Arbeitstag ausgelegt.
 - Zeitkorrekturen nehmen für die Pause eine mittige Position im Arbeitstag an.

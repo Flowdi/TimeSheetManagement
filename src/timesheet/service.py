@@ -120,6 +120,46 @@ class TimeSheetService:
     def list_users(self):
         return self.db.rows("SELECT id,username,display_name,role,active FROM users ORDER BY display_name")
 
+    def event_days(self, user_id: int):
+        return [
+            date.fromisoformat(row["work_date"])
+            for row in self.db.rows(
+                "SELECT DISTINCT substr(occurred_at,1,10) AS work_date FROM time_events "
+                "WHERE user_id=? ORDER BY work_date",
+                (user_id,),
+            )
+        ]
+
+    def sheet_row_for_day(self, user_id: int, day: date) -> list:
+        events = self.events_for_day(user_id, day)
+        if not events:
+            raise ValueError("Für diesen Tag sind keine Arbeitszeiten vorhanden.")
+        summary = summarize_events(events)
+        first_start = next(
+            (row for row in events if row["event_type"] == "work_start"), None
+        )
+        work_end = next(
+            (row for row in reversed(events) if row["event_type"] == "work_end"), None
+        )
+        last_type = events[-1]["event_type"]
+        status = {
+            "work_start": "Arbeitet",
+            "break_start": "Pause",
+            "break_end": "Arbeitet",
+            "work_end": "Beendet",
+        }[last_type]
+        return [
+            day.isoformat(),
+            datetime.fromisoformat(first_start["occurred_at"]).strftime("%H:%M:%S") if first_start else "",
+            datetime.fromisoformat(work_end["occurred_at"]).strftime("%H:%M:%S") if work_end else "",
+            summary.break_minutes,
+            format_minutes(summary.work_minutes),
+            format_minutes(summary.overtime_minutes),
+            status,
+            " | ".join(summary.warnings),
+            datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S"),
+        ]
+
     def record_event(self, user_id: int, event_type: str, occurred_at: datetime | None = None):
         occurred_at = occurred_at or datetime.now().astimezone()
         day = occurred_at.date().isoformat()
@@ -227,6 +267,7 @@ class TimeSheetService:
                 con.execute("DELETE FROM time_events WHERE user_id=? AND date(occurred_at)=?", (row["user_id"], row["work_date"]))
                 for kind, stamp in (("work_start",start),("break_start",break_start),("break_end",break_end),("work_end",end)):
                     con.execute("INSERT INTO time_events(user_id,event_type,occurred_at,source,note) VALUES(?,?,?,?,?)", (row["user_id"],kind,stamp.isoformat(timespec="seconds"),"correction",f"Korrekturantrag #{request_id}"))
+        return row["user_id"], date.fromisoformat(row["work_date"])
 
     def report(self, year: int, month: int):
         prefix = f"{year:04d}-{month:02d}"

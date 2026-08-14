@@ -3,7 +3,11 @@ name = "timesheet-management"
 version = "0.1.0"
 description = "Lokale Arbeitszeiterfassung mit vorbereitetem Google-Workflow"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "google-api-python-client>=2.180,<3",
+    "google-auth-httplib2>=0.2,<1",
+    "google-auth-oauthlib>=1.2,<2",
+]
 
 [project.scripts]
 timesheet-management = "timesheet.app:main"
@@ -11,4 +15,3 @@ timesheet-management = "timesheet.app:main"
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
-
