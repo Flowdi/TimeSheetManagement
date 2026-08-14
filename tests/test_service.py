@@ -45,6 +45,10 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(result.break_minutes, 30)
         self.assertEqual(result.overtime_minutes, 0)
         self.assertEqual(result.warnings, ())
+        sheet_row = self.service.sheet_row_for_day(
+            self.user["id"], datetime.fromisoformat(day).date()
+        )
+        self.assertEqual(sheet_row[:7], [day, "08:00:00", "16:30:00", 30, "08:00 h", "00:00 h", "Beendet"])
 
     def test_break_thresholds(self):
         self.assertEqual(required_break_minutes(360), 0)

@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import calendar
-import json
 import os
+import re
+import threading
 import tkinter as tk
 from datetime import date, datetime
 from pathlib import Path
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 
 from .database import Database
+from .google_gateway import GoogleConfig, GoogleGateway
+from .settings import SettingsStore
 from .service import ABSENCE_LABELS, EVENT_LABELS, TimeSheetService, format_minutes
 
 
@@ -53,6 +56,7 @@ class TimeSheetApp(tk.Tk):
         self.minsize(900, 600)
         self.db = Database(db_path or app_data_dir() / "timesheet.db")
         self.service = TimeSheetService(self.db)
+        self.settings = SettingsStore(app_data_dir() / "settings.json")
         self.user = None
         self.style = ttk.Style(self)
         self.style.theme_use("clam")
@@ -70,21 +74,18 @@ class TimeSheetApp(tk.Tk):
 
     @property
     def settings_path(self) -> Path:
-        return app_data_dir() / "settings.json"
+        return self.settings.path
 
     def load_theme(self) -> str:
         try:
-            value = json.loads(self.settings_path.read_text(encoding="utf-8")).get("theme")
+            value = self.settings.load().get("theme")
             return value if value in THEMES else "dark"
         except (OSError, ValueError, TypeError):
             return "dark"
 
     def set_theme(self, display_name: str):
         self.theme_name = "light" if display_name.lower().startswith("hell") else "dark"
-        self.settings_path.parent.mkdir(parents=True, exist_ok=True)
-        self.settings_path.write_text(
-            json.dumps({"theme": self.theme_name}, indent=2), encoding="utf-8"
-        )
+        self.settings.update(theme=self.theme_name)
         self.apply_theme()
 
     def apply_theme(self):
@@ -136,6 +137,43 @@ class TimeSheetApp(tk.Tk):
         selector.bind("<<ComboboxSelected>>", lambda _event: self.set_theme(selector.get()))
         selector.pack(side="left")
         return wrapper
+
+    def google_config(self) -> GoogleConfig:
+        settings = self.settings.load()
+        return GoogleConfig(
+            credentials_path=Path(
+                settings.get("google_credentials_path")
+                or app_data_dir() / "credentials.json"
+            ),
+            token_path=app_data_dir() / "token.json",
+            spreadsheet_id=settings.get("google_spreadsheet_id", ""),
+        )
+
+    def sync_user_day(self, user, day: date, interactive=False):
+        gateway = GoogleGateway(self.google_config())
+        row = self.service.sheet_row_for_day(user["id"], day)
+        return gateway.sync_day(user["display_name"], row, interactive=interactive)
+
+    def sync_in_background(self, user, day: date):
+        config = self.google_config()
+        if not config.configured or not config.token_path.exists():
+            return
+
+        def work():
+            try:
+                result = self.sync_user_day(user, day)
+                message = f"Google Sheets: {result['sheet_title']} · Zeile {result['row']}"
+                self.after(0, lambda: self.google_status(message, False))
+            except Exception as exc:
+                self.after(0, lambda e=str(exc): self.google_status(f"Google-Sync ausstehend: {e}", True))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def google_status(self, text: str, error: bool):
+        if hasattr(self, "sync_status_label") and self.sync_status_label.winfo_exists():
+            self.sync_status_label.configure(
+                text=text, style="Warning.TLabel" if error else "Muted.TLabel"
+            )
 
     def show_first_run(self):
         self.clear()
@@ -248,6 +286,7 @@ class TimeSheetApp(tk.Tk):
         try:
             self.service.record_event(self.user["id"], kind)
             self.refresh_time()
+            self.sync_in_background(self.user, date.today())
         except Exception as exc:
             messagebox.showerror("Buchung nicht möglich", str(exc))
 
@@ -343,6 +382,76 @@ class TimeSheetApp(tk.Tk):
                 messagebox.showinfo("Erstellt", "Mitarbeiterkonto wurde angelegt.")
             except Exception as exc: messagebox.showerror("Nicht möglich", str(exc))
         ttk.Button(user_box,text="Mitarbeiter anlegen",command=add_user).grid(row=1,column=3)
+        google_box = ttk.LabelFrame(tab, text="Google Sheets", padding=12)
+        google_box.pack(fill="x", pady=(0, 12))
+        current_google = self.settings.load()
+        ttk.Label(google_box, text="Spreadsheet-ID oder URL").grid(row=0, column=0, sticky="w")
+        spreadsheet = ttk.Entry(google_box, width=38)
+        spreadsheet.insert(0, current_google.get("google_spreadsheet_id", ""))
+        spreadsheet.grid(row=1, column=0, padx=(0, 10), sticky="ew")
+        ttk.Label(google_box, text="OAuth credentials.json").grid(row=0, column=1, sticky="w")
+        credentials = ttk.Entry(google_box, width=38)
+        credentials.insert(0, current_google.get("google_credentials_path", str(app_data_dir() / "credentials.json")))
+        credentials.grid(row=1, column=1, padx=(0, 8), sticky="ew")
+
+        def browse_credentials():
+            selected = filedialog.askopenfilename(
+                title="Google OAuth-Datei auswählen",
+                filetypes=(("JSON-Dateien", "*.json"), ("Alle Dateien", "*.*")),
+            )
+            if selected:
+                credentials.delete(0, "end")
+                credentials.insert(0, selected)
+
+        def save_google_settings():
+            raw = spreadsheet.get().strip()
+            match = re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", raw)
+            spreadsheet_id = match.group(1) if match else raw
+            self.settings.update(
+                google_spreadsheet_id=spreadsheet_id,
+                google_credentials_path=credentials.get().strip(),
+            )
+            spreadsheet.delete(0, "end")
+            spreadsheet.insert(0, spreadsheet_id)
+            self.google_status("Google-Einstellungen gespeichert.", False)
+
+        def connect_google():
+            save_google_settings()
+            self.google_status("Google-Autorisierung wird geöffnet …", False)
+            try:
+                title = GoogleGateway(self.google_config()).spreadsheet_title(interactive=True)
+                self.google_status(f"Verbunden mit: {title}", False)
+                messagebox.showinfo("Google Sheets", f"Verbindung erfolgreich: {title}")
+            except Exception as exc:
+                self.google_status(str(exc), True)
+                messagebox.showerror("Google-Verbindung fehlgeschlagen", str(exc))
+
+        def sync_all():
+            save_google_settings()
+            self.google_status("Alle vorhandenen Arbeitstage werden synchronisiert …", False)
+
+            def work():
+                count = 0
+                try:
+                    users = self.service.list_users()
+                    for employee in users:
+                        for work_day in self.service.event_days(employee["id"]):
+                            self.sync_user_day(employee, work_day)
+                            count += 1
+                    self.after(0, lambda: self.google_status(f"Google-Sync abgeschlossen: {count} Tageszeilen.", False))
+                except Exception as exc:
+                    self.after(0, lambda e=str(exc): self.google_status(f"Google-Sync fehlgeschlagen: {e}", True))
+
+            threading.Thread(target=work, daemon=True).start()
+
+        ttk.Button(google_box, text="Datei wählen", command=browse_credentials).grid(row=1, column=2, padx=(0, 8))
+        ttk.Button(google_box, text="Speichern", command=save_google_settings).grid(row=2, column=0, sticky="w", pady=(8, 0))
+        ttk.Button(google_box, text="Verbinden / testen", command=connect_google).grid(row=2, column=1, sticky="w", pady=(8, 0))
+        ttk.Button(google_box, text="Alles synchronisieren", command=sync_all).grid(row=2, column=2, sticky="w", pady=(8, 0))
+        google_box.columnconfigure(0, weight=1)
+        google_box.columnconfigure(1, weight=1)
+        self.sync_status_label = ttk.Label(google_box, text="Noch nicht verbunden.", style="Muted.TLabel")
+        self.sync_status_label.grid(row=3, column=0, columnspan=3, sticky="w", pady=(8, 0))
         panes = ttk.Panedwindow(tab, orient="horizontal"); panes.pack(fill="both",expand=True)
         absence_frame=ttk.LabelFrame(panes,text="Offene Abwesenheiten",padding=8); correction_frame=ttk.LabelFrame(panes,text="Offene Korrekturen",padding=8)
         panes.add(absence_frame,weight=1); panes.add(correction_frame,weight=1)
@@ -376,7 +485,12 @@ class TimeSheetApp(tk.Tk):
     def review_selected_correction(self,status):
         selection=self.pending_correction_tree.selection()
         if not selection: return
-        try: self.service.review_correction(int(selection[0]),self.user["id"],status); self.refresh_admin()
+        try:
+            employee_id, work_day = self.service.review_correction(int(selection[0]),self.user["id"],status)
+            self.refresh_admin()
+            if status == "approved":
+                employee = next(row for row in self.service.list_users() if row["id"] == employee_id)
+                self.sync_in_background(employee, work_day)
         except Exception as exc: messagebox.showerror("Nicht möglich",str(exc))
 
     def build_report_tab(self):
