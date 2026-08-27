@@ -58,6 +58,18 @@ CREATE TABLE IF NOT EXISTS audit_log (
     details TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS sync_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    work_date TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','failed','synced')),
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT NOT NULL DEFAULT '',
+    next_attempt_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(user_id, work_date)
+);
+CREATE INDEX IF NOT EXISTS idx_sync_queue_due ON sync_queue(status, next_attempt_at);
 """
 
 
@@ -67,6 +79,15 @@ class Database:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as connection:
             connection.executescript(SCHEMA)
+            now = self.now()
+            connection.execute(
+                """INSERT OR IGNORE INTO sync_queue(
+                       user_id,work_date,status,attempts,last_error,next_attempt_at,updated_at
+                   )
+                   SELECT DISTINCT user_id,substr(occurred_at,1,10),'pending',0,'',?,?
+                   FROM time_events""",
+                (now, now),
+            )
 
     @contextmanager
     def connect(self):
@@ -94,4 +115,3 @@ class Database:
     def rows(self, sql: str, parameters=()):
         with self.connect() as connection:
             return connection.execute(sql, parameters).fetchall()
-

@@ -28,6 +28,47 @@ class ServiceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.service.record_event(self.user["id"], "break_start")
 
+    def test_time_event_is_persisted_in_sync_queue(self):
+        timestamp = datetime.fromisoformat("2026-08-14T08:00:00").astimezone()
+        self.service.record_event(self.user["id"], "work_start", timestamp)
+        jobs = self.service.due_sync_jobs(force=True)
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0]["work_date"], "2026-08-14")
+        self.assertEqual(jobs[0]["status"], "pending")
+
+    def test_failed_sync_is_retained_and_can_be_completed(self):
+        day = datetime.fromisoformat("2026-08-14").date()
+        self.service.enqueue_sync(self.user["id"], day)
+        self.service.mark_sync_failure(self.user["id"], day, "Netzwerk nicht erreichbar")
+        failed = self.service.due_sync_jobs(force=True)[0]
+        self.assertEqual(failed["status"], "failed")
+        self.assertEqual(failed["attempts"], 1)
+        self.assertIn("Netzwerk", failed["last_error"])
+        self.service.mark_sync_success(self.user["id"], day)
+        self.assertEqual(self.service.sync_stats(), {"pending": 0, "failed": 0, "synced": 1})
+
+    def test_new_booking_resets_failed_sync_for_same_day(self):
+        day = datetime.fromisoformat("2026-08-14").date()
+        self.service.enqueue_sync(self.user["id"], day)
+        self.service.mark_sync_failure(self.user["id"], day, "vorheriger Fehler")
+        self.service.record_event(
+            self.user["id"], "work_start", datetime.fromisoformat("2026-08-14T08:00:00").astimezone()
+        )
+        job = self.service.due_sync_jobs(force=True)[0]
+        self.assertEqual(job["status"], "pending")
+        self.assertEqual(job["attempts"], 0)
+        self.assertEqual(job["last_error"], "")
+
+    def test_existing_events_are_backfilled_on_database_upgrade(self):
+        timestamp = datetime.fromisoformat("2026-08-14T08:00:00").astimezone()
+        self.service.record_event(self.user["id"], "work_start", timestamp)
+        with self.db.connect() as connection:
+            connection.execute("DELETE FROM sync_queue")
+        upgraded = TimeSheetService(Database(self.db.path))
+        jobs = upgraded.due_sync_jobs(force=True)
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0]["work_date"], "2026-08-14")
+
     def test_complete_workday_summary(self):
         day = "2026-08-14"
         for kind, stamp in (

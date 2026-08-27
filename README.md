@@ -127,6 +127,10 @@ nachvollziehbar.
 - automatische Aktualisierung nach Arbeitszeitbuchungen
 - automatische Aktualisierung nach genehmigten Korrekturen
 - manueller Komplettsync aller lokal vorhandenen Arbeitstage
+- dauerhafte lokale Warteschlange für noch nicht übertragene Tage
+- automatische Wiederholung mit wachsendem Abstand nach Verbindungsfehlern
+- sichtbare Anzahl ausstehender, fehlgeschlagener und erfolgreicher Übertragungen
+- automatische Übernahme bereits vorhandener lokaler Buchungen beim Update
 - lokale Zeiterfassung bleibt auch ohne Google-Verbindung nutzbar
 
 ## Schnellstart
@@ -392,12 +396,12 @@ Aktuell geprüft werden:
 - [x] Mitarbeiter-Registerkarten automatisch anlegen
 - [x] Tageszeilen idempotent aktualisieren
 - [x] manueller Komplettsync
-- [ ] dauerhaft fehlertolerante Sync-Warteschlange
+- [x] dauerhaft fehlertolerante Sync-Warteschlange
 - [ ] bidirektionaler Sync und Konfliktansicht
 - [ ] strukturierte Gmail-Benachrichtigungen
 - [ ] Idempotenz und Konfliktbehandlung
-- [ ] Syncstatus in der Oberfläche
-- [ ] manuelle Wiederholung fehlgeschlagener Übertragungen
+- [x] Syncstatus in der Oberfläche
+- [x] manuelle Wiederholung fehlgeschlagener Übertragungen
 
 ### Phase 3 – erweiterte Zeitwirtschaft
 
@@ -445,8 +449,8 @@ Nutzen, Datenschutz und Wartungsaufwand priorisiert werden.
 - Gmail-Versand ist noch deaktiviert.
 - Der Google-Sync ist derzeit einseitig von SQLite zu Sheets; Änderungen direkt
   im Sheet werden nicht zurückgelesen.
-- Fehlgeschlagene automatische Syncs werden angezeigt, aber noch nicht in einer
-  dauerhaften Warteschlange einzeln protokolliert.
+- Die Warteschlange speichert den letzten Fehler und die Anzahl der Versuche,
+  besitzt aber noch keine eigene Detailtabelle in der Oberfläche.
 - Feiertage werden noch nicht automatisch angelegt.
 - Sollstunden sind noch fest auf acht Stunden pro Arbeitstag ausgelegt.
 - Zeitkorrekturen nehmen für die Pause eine mittige Position im Arbeitstag an.
