@@ -10,7 +10,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from .database import Database
-from .google_gateway import GoogleConfig, GoogleGateway
+from .google_gateway import GoogleConfig, GoogleGateway, automatic_sync_ready
 from .settings import SettingsStore
 from .service import ABSENCE_LABELS, EVENT_LABELS, TimeSheetService, format_minutes
 
@@ -156,7 +156,12 @@ class TimeSheetApp(tk.Tk):
 
     def sync_in_background(self, user, day: date):
         config = self.google_config()
-        if not config.configured or not config.token_path.exists():
+        try:
+            ready = automatic_sync_ready(config)
+        except Exception as exc:
+            self.google_status(f"Google-Sync nicht verfügbar: {exc}", True)
+            return
+        if not ready:
             return
 
         def work():
@@ -170,10 +175,12 @@ class TimeSheetApp(tk.Tk):
         threading.Thread(target=work, daemon=True).start()
 
     def google_status(self, text: str, error: bool):
-        if hasattr(self, "sync_status_label") and self.sync_status_label.winfo_exists():
-            self.sync_status_label.configure(
-                text=text, style="Warning.TLabel" if error else "Muted.TLabel"
-            )
+        for attribute in ("time_sync_label", "sync_status_label"):
+            label = getattr(self, attribute, None)
+            if label is not None and label.winfo_exists():
+                label.configure(
+                    text=text, style="Warning.TLabel" if error else "Muted.TLabel"
+                )
 
     def show_first_run(self):
         self.clear()
@@ -263,6 +270,10 @@ class TimeSheetApp(tk.Tk):
         self.summary_label.pack(anchor="w", pady=5)
         self.warning_label = ttk.Label(tab, style="Warning.TLabel")
         self.warning_label.pack(anchor="w", pady=(5, 20))
+        self.time_sync_label = ttk.Label(
+            tab, text="Google Sheets: wartet auf eine Buchung", style="Muted.TLabel"
+        )
+        self.time_sync_label.pack(anchor="w", pady=(0, 12))
         buttons = ttk.Frame(tab)
         buttons.pack(anchor="w", pady=10)
         for col, (text, kind) in enumerate((("Arbeit beginnen", "work_start"), ("Pause beginnen", "break_start"), ("Pause beenden", "break_end"), ("Arbeit beenden", "work_end"))):

@@ -69,6 +69,14 @@ def credential_kind(path: Path) -> str:
     raise GoogleNotConfigured("Unbekannter Typ der Google-Zugangsdaten.")
 
 
+def automatic_sync_ready(config: GoogleConfig) -> bool:
+    """Return whether a configured account can sync without user interaction."""
+    if not config.configured:
+        return False
+    kind = credential_kind(config.credentials_path)
+    return kind == "service_account" or config.token_path.is_file()
+
+
 class GoogleGateway:
     """Small adapter around the Google Sheets API.
 
