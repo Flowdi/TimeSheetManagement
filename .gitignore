@@ -8,4 +8,4 @@ credentials.json
 token.json
 *.db
 *.sqlite3
-
+*.egg-info/

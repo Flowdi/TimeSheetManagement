@@ -119,7 +119,7 @@ nachvollziehbar.
 ### Google Sheets
 
 - Verbindung zu einem vorhandenen Spreadsheet über dessen ID oder URL
-- OAuth-2.0-Anmeldung ohne Speicherung eines Google-Passworts
+- Servicekonto oder Desktop-OAuth ohne Speicherung eines Google-Passworts
 - automatisch eine eigene Registerkarte pro Mitarbeiter
 - automatisch formatierte Kopfzeile und Spaltenbreiten
 - genau eine Zeile je Mitarbeiter und Datum
@@ -206,7 +206,7 @@ Die Darstellungseinstellung liegt unter:
 %LOCALAPPDATA%\TimeSheetManagement\settings.json
 ```
 
-Lokale Laufzeitdaten, Datenbanken und OAuth-Dateien sind über `.gitignore` vom
+Lokale Laufzeitdaten, Datenbanken und Google-Schlüsseldateien sind über `.gitignore` vom
 Repository ausgeschlossen.
 
 ### Datenmodell
@@ -230,7 +230,7 @@ src/timesheet/
 ├── database.py        SQLite-Schema und Transaktionszugriff
 ├── service.py         Regeln, Berechnungen und Anwendungslogik
 ├── security.py        Passwort-Hashing und Passwortprüfung
-├── google_gateway.py  OAuth und Google-Sheets-Synchronisierung
+├── google_gateway.py  Servicekonto/OAuth und Google-Sheets-Synchronisierung
 └── settings.py        atomare lokale Anwendungseinstellungen
 ```
 
@@ -240,8 +240,9 @@ anzubinden, ohne die Arbeitszeitregeln neu schreiben zu müssen.
 
 ## Google-Integration
 
-Google wird ausschließlich über OAuth 2.0 angebunden. Ein normales
-Google-Kontopasswort ist dafür weder erforderlich noch zulässig.
+Google wird über ein Servicekonto oder alternativ Desktop-OAuth angebunden. Ein
+normales Google-Kontopasswort ist dafür weder erforderlich noch zulässig. Für den
+zentralen unbeaufsichtigten Sheets-Sync wird das Servicekonto empfohlen.
 
 ### Google Sheets
 
@@ -272,18 +273,22 @@ lokalen Arbeitstage später erneut übertragen werden.
 
 ### Einrichtung in der Anwendung
 
-1. Im Google-Cloud-Projekt Gmail noch nicht, aber die Google Sheets API aktivieren.
-2. Einen OAuth-Client vom Typ `Desktop-App` erstellen.
-3. Die Clientdatei als `credentials.json` herunterladen.
-4. Das vorhandene Google Spreadsheet öffnen und dessen URL kopieren.
+1. Im Google-Cloud-Projekt die Google Sheets API aktivieren.
+2. Ein Servicekonto erstellen und einen JSON-Schlüssel herunterladen.
+3. Die E-Mail-Adresse des Servicekontos als Bearbeiter zum vorhandenen Google
+   Spreadsheet hinzufügen.
+4. Das Spreadsheet öffnen und dessen URL kopieren.
 5. In TimeSheet Management als Administrator anmelden.
 6. Unter `Administration > Google Sheets` die Spreadsheet-URL einfügen.
-7. Über `Datei wählen` die lokale `credentials.json` auswählen.
+7. Über `Datei wählen` den lokalen Servicekonto-Schlüssel auswählen.
 8. `Speichern` und anschließend `Verbinden / testen` wählen.
-9. Die Google-Freigabe im Browser bestätigen.
-10. Optional `Alles synchronisieren` ausführen.
+9. Optional `Alles synchronisieren` ausführen.
 
-Das erzeugte Zugriffstoken wird unter
+Bei einem Servicekonto öffnet sich kein Browserfenster und es entsteht keine
+`token.json`. Desktop-OAuth bleibt als alternative Anmeldemethode unterstützt;
+dabei wird die Google-Freigabe einmalig im Browser bestätigt.
+
+Bei Desktop-OAuth wird das erzeugte Zugriffstoken unter
 `%LOCALAPPDATA%\TimeSheetManagement\token.json` gespeichert und nicht in Git
 übernommen.
 
@@ -306,13 +311,12 @@ Nachrichten können anhand dieser ID erkannt werden.
 
 1. Google-Cloud-Projekt anlegen
 2. Google Sheets API aktivieren
-4. OAuth-Zustimmungsbildschirm konfigurieren
-5. OAuth-Client vom Typ `Desktop-App` erstellen
-6. `credentials.json` nur lokal bereitstellen
-7. Ziel-Sheet anlegen und dessen ID konfigurieren
-8. ausschließlich den Sheets-OAuth-Scope freigeben
+3. Servicekonto und JSON-Schlüssel erstellen
+4. Ziel-Sheet für die Servicekonto-E-Mail als Bearbeiter freigeben
+5. JSON-Schlüssel nur lokal bereitstellen
+6. Ziel-Sheet-ID beziehungsweise URL konfigurieren
 
-`credentials.json`, OAuth-Tokens und Kennwörter dürfen niemals committed werden.
+Servicekonto-Schlüssel, OAuth-Tokens und Kennwörter dürfen niemals committed werden.
 
 ## Sicherheit und Datenschutz
 
@@ -322,7 +326,7 @@ Bereits umgesetzt:
 - keine Klartextpasswörter in SQLite
 - PBKDF2-SHA256 mit 600.000 Iterationen und zufälligem Salt
 - parametrisierte SQL-Anweisungen
-- lokale OAuth-Dateien durch `.gitignore` ausgeschlossen
+- lokale Google-Schlüssel und OAuth-Dateien durch `.gitignore` ausgeschlossen
 - Rollenprüfung in der Oberfläche
 - nachvollziehbare Genehmigungsdatensätze
 
@@ -376,7 +380,7 @@ Aktuell geprüft werden:
 
 ### Phase 2 – Google Sheets und Gmail
 
-- [x] OAuth-Verbindung über den Adminbereich
+- [x] Servicekonto- und OAuth-Verbindung über den Adminbereich
 - [x] Mitarbeiter-Registerkarten automatisch anlegen
 - [x] Tageszeilen idempotent aktualisieren
 - [x] manueller Komplettsync

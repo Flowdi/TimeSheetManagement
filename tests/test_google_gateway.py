@@ -1,6 +1,9 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
-from timesheet.google_gateway import HEADERS, sanitize_sheet_title
+from timesheet.google_gateway import HEADERS, credential_kind, sanitize_sheet_title
 
 
 class GoogleGatewayTests(unittest.TestCase):
@@ -14,6 +17,18 @@ class GoogleGatewayTests(unittest.TestCase):
         self.assertEqual(HEADERS[0], "Datum")
         self.assertEqual(HEADERS[-1], "Synchronisiert am")
         self.assertEqual(len(HEADERS), 9)
+
+    def test_service_account_file_is_detected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "key.json"
+            path.write_text(json.dumps({"type": "service_account"}), encoding="utf-8")
+            self.assertEqual(credential_kind(path), "service_account")
+
+    def test_desktop_oauth_file_is_still_supported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "credentials.json"
+            path.write_text(json.dumps({"installed": {}}), encoding="utf-8")
+            self.assertEqual(credential_kind(path), "oauth")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,6 +44,19 @@ def sanitize_sheet_title(value: str) -> str:
     return (title or "Mitarbeiter")[:100]
 
 
+def credential_kind(path: Path) -> str:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError) as exc:
+        raise GoogleNotConfigured("Die Google-Zugangsdaten sind keine gültige JSON-Datei.") from exc
+    kind = payload.get("type") if isinstance(payload, dict) else None
+    if kind == "service_account":
+        return "service_account"
+    if isinstance(payload, dict) and ("installed" in payload or "web" in payload):
+        return "oauth"
+    raise GoogleNotConfigured("Unbekannter Typ der Google-Zugangsdaten.")
+
+
 class GoogleGateway:
     """Small adapter around the Google Sheets API.
 
@@ -67,17 +81,23 @@ class GoogleGateway:
         try:
             from google.auth.transport.requests import Request
             from google.oauth2.credentials import Credentials
+            from google.oauth2.service_account import Credentials as ServiceAccountCredentials
             from google_auth_oauthlib.flow import InstalledAppFlow
             from googleapiclient.discovery import build
         except ImportError as exc:
             raise GoogleDependencyMissing(
                 "Google-Pakete fehlen. Führe '.\\install.ps1' aus."
             ) from exc
-        return Request, Credentials, InstalledAppFlow, build
+        return Request, Credentials, ServiceAccountCredentials, InstalledAppFlow, build
 
     def authorize(self, interactive: bool = True):
         self.ensure_configured()
-        Request, Credentials, InstalledAppFlow, build = self._imports()
+        Request, Credentials, ServiceAccountCredentials, InstalledAppFlow, build = self._imports()
+        if credential_kind(self.config.credentials_path) == "service_account":
+            credentials = ServiceAccountCredentials.from_service_account_file(
+                str(self.config.credentials_path), scopes=SCOPES
+            )
+            return build("sheets", "v4", credentials=credentials, cache_discovery=False)
         credentials = None
         if self.config.token_path.exists():
             try:
