@@ -16,7 +16,7 @@ class GoogleGatewayTests(unittest.TestCase):
     def test_daily_sheet_has_stable_columns(self):
         self.assertEqual(HEADERS[0], "Datum")
         self.assertEqual(HEADERS[-1], "Synchronisiert am")
-        self.assertEqual(len(HEADERS), 9)
+        self.assertEqual(len(HEADERS), 11)
 
     def test_service_account_file_is_detected(self):
         with tempfile.TemporaryDirectory() as directory:

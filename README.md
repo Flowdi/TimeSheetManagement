@@ -250,16 +250,24 @@ Der aktuelle Sync verwendet pro Mitarbeiter eine Registerkarte. Der Anzeigename
 des Mitarbeiters wird als Registerkartenname verwendet; für Google unzulässige
 Zeichen werden dabei sicher ersetzt.
 
+Jede automatisch erzeugte Mitarbeiter-Registerkarte verwendet ein einheitliches
+Dark-Mode-Layout mit hellblauen Akzenten. Titel und Hinweiszeile stehen oberhalb
+der fixierten Tabellenüberschrift, Gitternetzlinien sind ausgeblendet und
+Status- beziehungsweise Warnungsfelder werden bedingt formatiert. Die vorhandene
+Registerkarte `Vorlage` zeigt die spätere Mitarbeiterstruktur bereits ohne Daten.
+
 | Spalte | Inhalt |
 |---|---|
 | Datum | eindeutiger Schlüssel der Tageszeile |
+| Wochentag | ausgeschriebener deutscher Wochentag |
 | Arbeitsbeginn | erste Startbuchung des Tages |
+| Pausen | einzelne Zeiträume, beispielsweise `12:00–12:30` |
+| Pause gesamt (Min.) | gesamte erfasste Pausenzeit |
 | Arbeitsende | letzte Endbuchung des Tages |
-| Pause (Min.) | gesamte erfasste Pausenzeit |
-| Arbeitszeit | berechnete Nettoarbeitszeit |
+| Nettoarbeitszeit | berechnete Arbeitszeit ohne Pausen |
 | Überstunden | Differenz zu acht Sollstunden |
 | Status | Arbeitet, Pause oder Beendet |
-| Warnungen | Pausen- und Arbeitszeitverstöße |
+| Hinweise | Pausen- und Arbeitszeitverstöße |
 | Synchronisiert am | Zeitpunkt der letzten Aktualisierung |
 
 Beim Sync liest die Anwendung die vorhandenen Datumswerte der Registerkarte. Ist
