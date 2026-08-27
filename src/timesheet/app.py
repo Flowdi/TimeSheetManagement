@@ -58,6 +58,7 @@ class TimeSheetApp(tk.Tk):
         self.service = TimeSheetService(self.db)
         self.settings = SettingsStore(app_data_dir() / "settings.json")
         self.user = None
+        self._sync_worker_running = False
         self.style = ttk.Style(self)
         self.style.theme_use("clam")
         self.theme_name = self.load_theme()
@@ -67,6 +68,7 @@ class TimeSheetApp(tk.Tk):
             self.show_login()
         else:
             self.show_first_run()
+        self.after(2000, self.schedule_sync_retries)
 
     def clear(self):
         for child in self.winfo_children():
@@ -155,6 +157,11 @@ class TimeSheetApp(tk.Tk):
         return gateway.sync_day(user["display_name"], row, interactive=interactive)
 
     def sync_in_background(self, user, day: date):
+        self.retry_pending_syncs(force=True)
+
+    def retry_pending_syncs(self, force=False):
+        if self._sync_worker_running:
+            return
         config = self.google_config()
         try:
             ready = automatic_sync_ready(config)
@@ -163,16 +170,59 @@ class TimeSheetApp(tk.Tk):
             return
         if not ready:
             return
+        jobs = self.service.due_sync_jobs(force=force)
+        if not jobs:
+            self.refresh_sync_status()
+            return
+        self._sync_worker_running = True
 
         def work():
-            try:
-                result = self.sync_user_day(user, day)
-                message = f"Google Sheets: {result['sheet_title']} · Zeile {result['row']}"
-                self.after(0, lambda: self.google_status(message, False))
-            except Exception as exc:
-                self.after(0, lambda e=str(exc): self.google_status(f"Google-Sync ausstehend: {e}", True))
+            successes = 0
+            failures = 0
+            last_error = ""
+            for job in jobs:
+                work_day = date.fromisoformat(job["work_date"])
+                try:
+                    self.sync_user_day(job, work_day)
+                    self.service.mark_sync_success(job["user_id"], work_day)
+                    successes += 1
+                except Exception as exc:
+                    last_error = str(exc)
+                    self.service.mark_sync_failure(job["user_id"], work_day, last_error)
+                    failures += 1
+
+            def complete():
+                self._sync_worker_running = False
+                if failures:
+                    self.google_status(
+                        f"Google Sheets: {successes} übertragen, {failures} ausstehend · {last_error}",
+                        True,
+                    )
+                else:
+                    self.google_status(
+                        f"Google Sheets: {successes} Tageszeile(n) synchronisiert", False
+                    )
+                self.refresh_sync_status()
+
+            self.after(0, complete)
 
         threading.Thread(target=work, daemon=True).start()
+
+    def schedule_sync_retries(self):
+        self.retry_pending_syncs()
+        self.after(60_000, self.schedule_sync_retries)
+
+    def refresh_sync_status(self):
+        stats = self.service.sync_stats()
+        text = (
+            f"Syncstatus: {stats['pending']} ausstehend · "
+            f"{stats['failed']} Fehler · {stats['synced']} synchronisiert"
+        )
+        if hasattr(self, "queue_status_label") and self.queue_status_label.winfo_exists():
+            self.queue_status_label.configure(
+                text=text,
+                style="Warning.TLabel" if stats["failed"] else "Muted.TLabel",
+            )
 
     def google_status(self, text: str, error: bool):
         for attribute in ("time_sync_label", "sync_status_label"):
@@ -432,6 +482,7 @@ class TimeSheetApp(tk.Tk):
             try:
                 title = GoogleGateway(self.google_config()).spreadsheet_title(interactive=True)
                 self.google_status(f"Verbunden mit: {title}", False)
+                self.retry_pending_syncs(force=True)
                 messagebox.showinfo("Google Sheets", f"Verbindung erfolgreich: {title}")
             except Exception as exc:
                 self.google_status(str(exc), True)
@@ -439,21 +490,14 @@ class TimeSheetApp(tk.Tk):
 
         def sync_all():
             save_google_settings()
-            self.google_status("Alle vorhandenen Arbeitstage werden synchronisiert …", False)
-
-            def work():
-                count = 0
-                try:
-                    users = self.service.list_users()
-                    for employee in users:
-                        for work_day in self.service.event_days(employee["id"]):
-                            self.sync_user_day(employee, work_day)
-                            count += 1
-                    self.after(0, lambda: self.google_status(f"Google-Sync abgeschlossen: {count} Tageszeilen.", False))
-                except Exception as exc:
-                    self.after(0, lambda e=str(exc): self.google_status(f"Google-Sync fehlgeschlagen: {e}", True))
-
-            threading.Thread(target=work, daemon=True).start()
+            count = 0
+            for employee in self.service.list_users():
+                for work_day in self.service.event_days(employee["id"]):
+                    self.service.enqueue_sync(employee["id"], work_day)
+                    count += 1
+            self.google_status(f"{count} Tageszeilen zur Synchronisierung vorgemerkt …", False)
+            self.refresh_sync_status()
+            self.retry_pending_syncs(force=True)
 
         ttk.Button(google_box, text="Datei wählen", command=browse_credentials).grid(row=1, column=2, padx=(0, 8))
         ttk.Button(google_box, text="Speichern", command=save_google_settings).grid(row=2, column=0, sticky="w", pady=(8, 0))
@@ -463,6 +507,9 @@ class TimeSheetApp(tk.Tk):
         google_box.columnconfigure(1, weight=1)
         self.sync_status_label = ttk.Label(google_box, text="Noch nicht verbunden.", style="Muted.TLabel")
         self.sync_status_label.grid(row=3, column=0, columnspan=3, sticky="w", pady=(8, 0))
+        self.queue_status_label = ttk.Label(google_box, style="Muted.TLabel")
+        self.queue_status_label.grid(row=4, column=0, columnspan=3, sticky="w", pady=(4, 0))
+        self.refresh_sync_status()
         panes = ttk.Panedwindow(tab, orient="horizontal"); panes.pack(fill="both",expand=True)
         absence_frame=ttk.LabelFrame(panes,text="Offene Abwesenheiten",padding=8); correction_frame=ttk.LabelFrame(panes,text="Offene Korrekturen",padding=8)
         panes.add(absence_frame,weight=1); panes.add(correction_frame,weight=1)

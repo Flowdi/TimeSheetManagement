@@ -193,6 +193,69 @@ class TimeSheetService:
                 "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
                 (user_id, "time_event", f"{event_type} am {day}", self.db.now()),
             )
+            self._enqueue_sync(con, user_id, occurred_at.date())
+
+    def _enqueue_sync(self, connection, user_id: int, day: date):
+        now = self.db.now()
+        connection.execute(
+            """INSERT INTO sync_queue(user_id,work_date,status,attempts,last_error,next_attempt_at,updated_at)
+               VALUES(?,?,'pending',0,'',?,?)
+               ON CONFLICT(user_id,work_date) DO UPDATE SET
+                 status='pending', attempts=0, last_error='', next_attempt_at=excluded.next_attempt_at,
+                 updated_at=excluded.updated_at""",
+            (user_id, day.isoformat(), now, now),
+        )
+
+    def enqueue_sync(self, user_id: int, day: date):
+        with self.db.connect() as con:
+            self._enqueue_sync(con, user_id, day)
+
+    def due_sync_jobs(self, force: bool = False):
+        where = "q.status IN ('pending','failed')"
+        parameters = []
+        if not force:
+            where += " AND q.next_attempt_at<=?"
+            parameters.append(self.db.now())
+        return self.db.rows(
+            f"""SELECT q.*,u.display_name,u.username,u.role,u.active
+                FROM sync_queue q JOIN users u ON u.id=q.user_id
+                WHERE {where} AND u.active=1
+                ORDER BY q.updated_at""",
+            parameters,
+        )
+
+    def mark_sync_success(self, user_id: int, day: date):
+        with self.db.connect() as con:
+            con.execute(
+                "UPDATE sync_queue SET status='synced',last_error='',updated_at=? WHERE user_id=? AND work_date=?",
+                (self.db.now(), user_id, day.isoformat()),
+            )
+
+    def mark_sync_failure(self, user_id: int, day: date, error: str):
+        with self.db.connect() as con:
+            row = con.execute(
+                "SELECT attempts FROM sync_queue WHERE user_id=? AND work_date=?",
+                (user_id, day.isoformat()),
+            ).fetchone()
+            attempts = (row["attempts"] if row else 0) + 1
+            delay = min(60 * (2 ** min(attempts - 1, 6)), 3600)
+            next_attempt = datetime.now().astimezone() + timedelta(seconds=delay)
+            con.execute(
+                """INSERT INTO sync_queue(user_id,work_date,status,attempts,last_error,next_attempt_at,updated_at)
+                   VALUES(?,?,'failed',?,?,?,?)
+                   ON CONFLICT(user_id,work_date) DO UPDATE SET
+                     status='failed',attempts=excluded.attempts,last_error=excluded.last_error,
+                     next_attempt_at=excluded.next_attempt_at,updated_at=excluded.updated_at""",
+                (user_id, day.isoformat(), attempts, str(error)[:1000], next_attempt.isoformat(timespec="seconds"), self.db.now()),
+            )
+
+    def sync_stats(self):
+        rows = self.db.rows(
+            "SELECT status,COUNT(*) AS count FROM sync_queue GROUP BY status"
+        )
+        result = {"pending": 0, "failed": 0, "synced": 0}
+        result.update({row["status"]: row["count"] for row in rows})
+        return result
 
     def events_for_day(self, user_id: int, day: date):
         start = datetime.combine(day, time.min).astimezone().isoformat()
@@ -281,6 +344,7 @@ class TimeSheetService:
                 con.execute("DELETE FROM time_events WHERE user_id=? AND date(occurred_at)=?", (row["user_id"], row["work_date"]))
                 for kind, stamp in (("work_start",start),("break_start",break_start),("break_end",break_end),("work_end",end)):
                     con.execute("INSERT INTO time_events(user_id,event_type,occurred_at,source,note) VALUES(?,?,?,?,?)", (row["user_id"],kind,stamp.isoformat(timespec="seconds"),"correction",f"Korrekturantrag #{request_id}"))
+                self._enqueue_sync(con, row["user_id"], date.fromisoformat(row["work_date"]))
         return row["user_id"], date.fromisoformat(row["work_date"])
 
     def report(self, year: int, month: int):
