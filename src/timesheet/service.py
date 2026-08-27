@@ -148,11 +148,25 @@ class TimeSheetService:
             "break_end": "Arbeitet",
             "work_end": "Beendet",
         }[last_type]
+        break_periods = []
+        break_start = None
+        for event in events:
+            if event["event_type"] == "break_start":
+                break_start = datetime.fromisoformat(event["occurred_at"]).strftime("%H:%M")
+            elif event["event_type"] == "break_end" and break_start:
+                break_end = datetime.fromisoformat(event["occurred_at"]).strftime("%H:%M")
+                break_periods.append(f"{break_start}–{break_end}")
+                break_start = None
+        if break_start:
+            break_periods.append(f"{break_start}–offen")
+        weekdays = ("Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag")
         return [
             day.isoformat(),
+            weekdays[day.weekday()],
             datetime.fromisoformat(first_start["occurred_at"]).strftime("%H:%M:%S") if first_start else "",
-            datetime.fromisoformat(work_end["occurred_at"]).strftime("%H:%M:%S") if work_end else "",
+            "; ".join(break_periods),
             summary.break_minutes,
+            datetime.fromisoformat(work_end["occurred_at"]).strftime("%H:%M:%S") if work_end else "",
             format_minutes(summary.work_minutes),
             format_minutes(summary.overtime_minutes),
             status,

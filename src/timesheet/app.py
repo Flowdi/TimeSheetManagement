@@ -389,14 +389,14 @@ class TimeSheetApp(tk.Tk):
         spreadsheet = ttk.Entry(google_box, width=38)
         spreadsheet.insert(0, current_google.get("google_spreadsheet_id", ""))
         spreadsheet.grid(row=1, column=0, padx=(0, 10), sticky="ew")
-        ttk.Label(google_box, text="OAuth credentials.json").grid(row=0, column=1, sticky="w")
+        ttk.Label(google_box, text="Google-Zugangsdaten (JSON)").grid(row=0, column=1, sticky="w")
         credentials = ttk.Entry(google_box, width=38)
         credentials.insert(0, current_google.get("google_credentials_path", str(app_data_dir() / "credentials.json")))
         credentials.grid(row=1, column=1, padx=(0, 8), sticky="ew")
 
         def browse_credentials():
             selected = filedialog.askopenfilename(
-                title="Google OAuth-Datei auswählen",
+                title="Google-Zugangsdaten auswählen",
                 filetypes=(("JSON-Dateien", "*.json"), ("Alle Dateien", "*.*")),
             )
             if selected:
@@ -417,7 +417,7 @@ class TimeSheetApp(tk.Tk):
 
         def connect_google():
             save_google_settings()
-            self.google_status("Google-Autorisierung wird geöffnet …", False)
+            self.google_status("Google-Verbindung wird geprüft …", False)
             try:
                 title = GoogleGateway(self.google_config()).spreadsheet_title(interactive=True)
                 self.google_status(f"Verbunden mit: {title}", False)
