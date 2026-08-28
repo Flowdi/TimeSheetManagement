@@ -24,6 +24,27 @@ class ServiceTests(unittest.TestCase):
         self.assertIsNotNone(self.user)
         self.assertIsNone(self.service.authenticate("anna", "falsch"))
 
+    def test_user_can_change_own_password(self):
+        self.service.change_password(self.user["id"], "Sicher123!", "NochSicherer456!")
+        self.assertIsNone(self.service.authenticate("anna", "Sicher123!"))
+        self.assertIsNotNone(self.service.authenticate("anna", "NochSicherer456!"))
+        audit = self.db.rows(
+            "SELECT action FROM audit_log WHERE actor_user_id=? ORDER BY id DESC",
+            (self.user["id"],),
+        )
+        self.assertEqual(audit[0]["action"], "password_changed")
+
+    def test_password_change_rejects_wrong_current_password(self):
+        with self.assertRaisesRegex(ValueError, "bisherige Passwort"):
+            self.service.change_password(self.user["id"], "falsch", "NochSicherer456!")
+        self.assertIsNotNone(self.service.authenticate("anna", "Sicher123!"))
+
+    def test_password_change_rejects_short_or_reused_password(self):
+        with self.assertRaisesRegex(ValueError, "mindestens 8"):
+            self.service.change_password(self.user["id"], "Sicher123!", "kurz")
+        with self.assertRaisesRegex(ValueError, "unterscheiden"):
+            self.service.change_password(self.user["id"], "Sicher123!", "Sicher123!")
+
     def test_event_order_is_enforced(self):
         with self.assertRaises(ValueError):
             self.service.record_event(self.user["id"], "break_start")

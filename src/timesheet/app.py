@@ -295,9 +295,11 @@ class TimeSheetApp(tk.Tk):
         self.time_tab = ttk.Frame(notebook, padding=20)
         self.absence_tab = ttk.Frame(notebook, padding=20)
         self.correction_tab = ttk.Frame(notebook, padding=20)
+        self.account_tab = ttk.Frame(notebook, padding=20)
         notebook.add(self.time_tab, text="Arbeitszeit")
         notebook.add(self.absence_tab, text="Abwesenheiten")
         notebook.add(self.correction_tab, text="Korrekturen")
+        notebook.add(self.account_tab, text="Mein Konto")
         if self.user["role"] == "admin":
             self.admin_tab = ttk.Frame(notebook, padding=20)
             self.report_tab = ttk.Frame(notebook, padding=20)
@@ -308,6 +310,62 @@ class TimeSheetApp(tk.Tk):
         self.build_time_tab()
         self.build_absence_tab()
         self.build_correction_tab()
+        self.build_account_tab()
+
+    def build_account_tab(self):
+        tab = self.account_tab
+        ttk.Label(tab, text="Mein Konto", style="Title.TLabel").grid(
+            row=0, column=0, columnspan=2, sticky="w", pady=(0, 8)
+        )
+        ttk.Label(
+            tab,
+            text=f"Angemeldet als {self.user['display_name']} ({self.user['username']})",
+            style="Muted.TLabel",
+        ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 24))
+
+        fields = {}
+        for row, label in enumerate(
+            ("Bisheriges Passwort", "Neues Passwort", "Neues Passwort bestätigen"), 2
+        ):
+            ttk.Label(tab, text=label).grid(row=row, column=0, sticky="w", pady=7)
+            entry = ttk.Entry(tab, width=36, show="*")
+            entry.grid(row=row, column=1, sticky="w", padx=(18, 0), pady=7)
+            fields[label] = entry
+
+        feedback = ttk.Label(tab, style="Muted.TLabel")
+        feedback.grid(row=6, column=0, columnspan=2, sticky="w", pady=(12, 0))
+
+        def change_password():
+            current = fields["Bisheriges Passwort"].get()
+            new = fields["Neues Passwort"].get()
+            confirmation = fields["Neues Passwort bestätigen"].get()
+            if new != confirmation:
+                feedback.configure(
+                    text="Die beiden neuen Passwörter stimmen nicht überein.",
+                    style="Warning.TLabel",
+                )
+                return
+            try:
+                self.service.change_password(self.user["id"], current, new)
+            except Exception as exc:
+                feedback.configure(text=str(exc), style="Warning.TLabel")
+                return
+            for entry in fields.values():
+                entry.delete(0, "end")
+            feedback.configure(
+                text="Passwort erfolgreich geändert.", style="Muted.TLabel"
+            )
+            messagebox.showinfo(
+                "Passwort geändert",
+                "Das neue Passwort ist ab der nächsten Anmeldung aktiv.",
+            )
+
+        ttk.Button(
+            tab,
+            text="Passwort ändern",
+            command=change_password,
+            style="Action.TButton",
+        ).grid(row=5, column=0, columnspan=2, sticky="w", pady=(20, 0))
 
     def build_time_tab(self):
         tab = self.time_tab
