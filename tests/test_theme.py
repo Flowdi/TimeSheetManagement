@@ -1,17 +1,23 @@
 import unittest
 
-from timesheet.app import THEMES, TimeSheetApp
+from timesheet.app import (
+    NAVIGATION_TAB_PADDING,
+    NAVIGATION_TAB_WIDTH,
+    THEMES,
+    TimeSheetApp,
+)
 
 
 class FakeStyle:
     def __init__(self):
         self.configured = {}
+        self.mapped = {}
 
     def configure(self, name, **options):
         self.configured[name] = options
 
-    def map(self, _name, **_options):
-        pass
+    def map(self, name, **options):
+        self.mapped[name] = options
 
 
 class FakeApp:
@@ -36,6 +42,22 @@ class ThemeTests(unittest.TestCase):
         TimeSheetApp.apply_theme(fake)
         self.assertEqual(fake.style.configured["TFrame"]["background"], "#212121")
         self.assertEqual(fake.style.configured["Muted.TLabel"]["foreground"], "#b4b4b4")
+
+    def test_navigation_tabs_keep_same_size_in_every_state(self):
+        fake = FakeApp()
+        TimeSheetApp.apply_theme(fake)
+        configured = fake.style.configured["App.TNotebook.Tab"]
+        mapped = fake.style.mapped["App.TNotebook.Tab"]
+        self.assertEqual(configured["width"], NAVIGATION_TAB_WIDTH)
+        self.assertEqual(configured["padding"], NAVIGATION_TAB_PADDING)
+        self.assertEqual(
+            dict(mapped["padding"]),
+            {"selected": NAVIGATION_TAB_PADDING, "!selected": NAVIGATION_TAB_PADDING},
+        )
+        self.assertEqual(
+            dict(mapped["expand"]),
+            {"selected": (0, 0, 0, 0), "!selected": (0, 0, 0, 0)},
+        )
 
 
 if __name__ == "__main__":
