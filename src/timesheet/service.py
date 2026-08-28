@@ -117,6 +117,26 @@ class TimeSheetService:
         rows = self.db.rows("SELECT * FROM users WHERE username=? AND active=1", (username.strip(),))
         return rows[0] if rows and verify_password(password, rows[0]["password_hash"]) else None
 
+    def change_password(self, user_id: int, current_password: str, new_password: str):
+        rows = self.db.rows(
+            "SELECT password_hash FROM users WHERE id=? AND active=1", (user_id,)
+        )
+        if not rows or not verify_password(current_password, rows[0]["password_hash"]):
+            raise ValueError("Das bisherige Passwort ist nicht korrekt.")
+        if len(new_password) < 8:
+            raise ValueError("Das neue Passwort muss mindestens 8 Zeichen haben.")
+        if new_password == current_password:
+            raise ValueError("Das neue Passwort muss sich vom bisherigen unterscheiden.")
+        with self.db.connect() as con:
+            con.execute(
+                "UPDATE users SET password_hash=? WHERE id=?",
+                (hash_password(new_password), user_id),
+            )
+            con.execute(
+                "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
+                (user_id, "password_changed", "Lokales Passwort geändert", self.db.now()),
+            )
+
     def list_users(self):
         return self.db.rows("SELECT id,username,display_name,role,active FROM users ORDER BY display_name")
 

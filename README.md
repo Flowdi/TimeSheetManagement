@@ -37,6 +37,8 @@ dem Betrieb wachsen kann.
 - passwortbasierte Speicherung mit PBKDF2-SHA256 und individuellem Salt
 - Rollen `Mitarbeiter` und `Administrator`
 - Anlage weiterer Mitarbeiterkonten durch Administratoren
+- selbstständige Passwortänderung im Reiter `Mein Konto`
+- Prüfung des bisherigen Passworts und Audit-Eintrag bei jeder Änderung
 - lokale Speicherung; Google-Kennwörter werden nicht verwendet
 
 ### Arbeitszeiterfassung
@@ -385,7 +387,8 @@ Aktuell geprüft werden:
 - [x] Monatsauswertung
 - [x] Dark und Light Mode
 - [ ] automatische Feiertage für Bayern und das Augsburger Friedensfest
-- [ ] Passwortverwaltung
+- [x] Passwortänderung durch angemeldete Benutzer
+- [ ] administratives Zurücksetzen vergessener Passwörter
 - [ ] CSV-Export
 - [ ] Backup und Wiederherstellung
 - [ ] Windows-Installer
