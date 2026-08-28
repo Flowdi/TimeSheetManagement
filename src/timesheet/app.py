@@ -41,6 +41,8 @@ THEMES = {
         "danger": "#b42318",
     },
 }
+NAVIGATION_TAB_PADDING = (14, 10)
+NAVIGATION_TAB_WIDTH = 18
 
 
 def app_data_dir() -> Path:
@@ -118,9 +120,30 @@ class TimeSheetApp(tk.Tk):
         self.option_add("*TCombobox*Listbox.background", colors["surface"])
         self.option_add("*TCombobox*Listbox.foreground", colors["text"])
         self.option_add("*TCombobox*Listbox.selectBackground", colors["selected"])
-        self.style.configure("TNotebook", background=colors["bg"], borderwidth=0)
-        self.style.configure("TNotebook.Tab", background=colors["surface"], foreground=colors["muted"], padding=(14, 9), bordercolor=colors["bg"])
-        self.style.map("TNotebook.Tab", background=[("selected", colors["surface_alt"])], foreground=[("selected", colors["accent"])])
+        self.style.configure("App.TNotebook", background=colors["bg"], borderwidth=0)
+        self.style.configure(
+            "App.TNotebook.Tab",
+            background=colors["surface"],
+            foreground=colors["muted"],
+            padding=NAVIGATION_TAB_PADDING,
+            width=NAVIGATION_TAB_WIDTH,
+            anchor="center",
+            borderwidth=1,
+            relief="flat",
+            bordercolor=colors["bg"],
+            lightcolor=colors["bg"],
+            darkcolor=colors["bg"],
+        )
+        self.style.map(
+            "App.TNotebook.Tab",
+            background=[("selected", colors["surface_alt"]), ("!selected", colors["surface"])],
+            foreground=[("selected", colors["accent"]), ("!selected", colors["muted"])],
+            padding=[("selected", NAVIGATION_TAB_PADDING), ("!selected", NAVIGATION_TAB_PADDING)],
+            expand=[("selected", (0, 0, 0, 0)), ("!selected", (0, 0, 0, 0))],
+            bordercolor=[("selected", colors["accent"]), ("!selected", colors["bg"])],
+            lightcolor=[("selected", colors["accent"]), ("!selected", colors["bg"])],
+            darkcolor=[("selected", colors["accent"]), ("!selected", colors["bg"])],
+        )
         self.style.configure("Treeview", background=colors["surface"], fieldbackground=colors["surface"], foreground=colors["text"], bordercolor=colors["accent"], rowheight=27)
         self.style.configure("Treeview.Heading", background=colors["surface_alt"], foreground=colors["accent"], bordercolor=colors["accent"], font=("Segoe UI", 10, "bold"))
         self.style.map("Treeview", background=[("selected", colors["selected"])], foreground=[("selected", colors["text"])])
@@ -290,7 +313,7 @@ class TimeSheetApp(tk.Tk):
         ttk.Label(header, text=f"Hallo, {self.user['display_name']}", style="Heading.TLabel").pack(side="left")
         ttk.Button(header, text="Abmelden", command=self.show_login).pack(side="right")
         self.add_theme_selector(header).pack(side="right", padx=15)
-        notebook = ttk.Notebook(self)
+        notebook = ttk.Notebook(self, style="App.TNotebook")
         notebook.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         self.time_tab = ttk.Frame(notebook, padding=20)
         self.absence_tab = ttk.Frame(notebook, padding=20)
