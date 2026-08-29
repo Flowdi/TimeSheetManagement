@@ -294,6 +294,17 @@ class TimeSheetService:
         if end < start:
             raise ValueError("Das Enddatum liegt vor dem Startdatum.")
         with self.db.connect() as con:
+            overlap = con.execute(
+                """SELECT id FROM absence_requests
+                   WHERE user_id=? AND status IN ('pending','approved')
+                     AND start_date<=? AND end_date>=?
+                   LIMIT 1""",
+                (user_id, end.isoformat(), start.isoformat()),
+            ).fetchone()
+            if overlap:
+                raise ValueError(
+                    "Für diesen Zeitraum besteht bereits ein offener oder genehmigter Abwesenheitsantrag."
+                )
             con.execute(
                 "INSERT INTO absence_requests(user_id,absence_type,start_date,end_date,reason,created_at) VALUES(?,?,?,?,?,?)",
                 (user_id, absence_type, start.isoformat(), end.isoformat(), reason.strip(), self.db.now()),

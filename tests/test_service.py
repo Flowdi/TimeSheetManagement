@@ -133,6 +133,32 @@ class ServiceTests(unittest.TestCase):
         )
         self.assertEqual(anna_report["absence_days"], 5)
 
+    def test_absence_rejects_overlapping_active_request(self):
+        self.service.request_absence(
+            self.user["id"], "vacation", "2026-08-17", "2026-08-21"
+        )
+        with self.assertRaisesRegex(ValueError, "bereits ein offener oder genehmigter"):
+            self.service.request_absence(
+                self.user["id"], "overtime_reduction", "2026-08-21", "2026-08-24"
+            )
+        self.service.request_absence(
+            self.user["id"], "overtime_reduction", "2026-08-22", "2026-08-24"
+        )
+        self.assertEqual(len(self.service.list_absences(self.user["id"])), 2)
+
+    def test_rejected_absence_period_can_be_requested_again(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.request_absence(
+            self.user["id"], "vacation", "2026-08-17", "2026-08-21"
+        )
+        request = self.service.list_absences(self.user["id"])[0]
+        self.service.review_absence(request["id"], admin["id"], "rejected")
+        self.service.request_absence(
+            self.user["id"], "vacation", "2026-08-17", "2026-08-21"
+        )
+        self.assertEqual(len(self.service.list_absences(self.user["id"])), 2)
+
     def test_approved_correction_creates_events(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")
         admin = self.service.authenticate("admin", "Sicher123!")
