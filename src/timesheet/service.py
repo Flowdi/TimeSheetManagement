@@ -294,6 +294,17 @@ class TimeSheetService:
         if end < start:
             raise ValueError("Das Enddatum liegt vor dem Startdatum.")
         with self.db.connect() as con:
+            overlap = con.execute(
+                """SELECT id FROM absence_requests
+                   WHERE user_id=? AND status IN ('pending','approved')
+                     AND start_date<=? AND end_date>=?
+                   LIMIT 1""",
+                (user_id, end.isoformat(), start.isoformat()),
+            ).fetchone()
+            if overlap:
+                raise ValueError(
+                    "Für diesen Zeitraum besteht bereits ein offener oder genehmigter Abwesenheitsantrag."
+                )
             con.execute(
                 "INSERT INTO absence_requests(user_id,absence_type,start_date,end_date,reason,created_at) VALUES(?,?,?,?,?,?)",
                 (user_id, absence_type, start.isoformat(), end.isoformat(), reason.strip(), self.db.now()),
@@ -322,15 +333,36 @@ class TimeSheetService:
             )
 
     def request_correction(self, user_id, work_date, start, end, break_minutes, reason):
-        date.fromisoformat(work_date)
-        time.fromisoformat(start)
-        time.fromisoformat(end)
-        if not reason.strip() or int(break_minutes) < 0:
-            raise ValueError("Begründung und gültige Pausenzeit erforderlich.")
+        work_day = date.fromisoformat(work_date)
+        start_time = time.fromisoformat(start)
+        end_time = time.fromisoformat(end)
+        start_at = datetime.combine(work_day, start_time)
+        end_at = datetime.combine(work_day, end_time)
+        if end_at <= start_at:
+            raise ValueError("Das Arbeitsende muss nach dem Arbeitsbeginn liegen.")
+        try:
+            pause = int(break_minutes)
+        except (TypeError, ValueError) as error:
+            raise ValueError("Die Pausenzeit muss als ganze Minutenzahl angegeben werden.") from error
+        attendance_minutes = int((end_at - start_at).total_seconds() // 60)
+        if pause < 0:
+            raise ValueError("Die Pausenzeit darf nicht negativ sein.")
+        if pause >= attendance_minutes:
+            raise ValueError("Die Pausenzeit muss kürzer als die Anwesenheitszeit sein.")
+        if not reason.strip():
+            raise ValueError("Für die Zeitkorrektur ist eine Begründung erforderlich.")
         with self.db.connect() as con:
             con.execute(
                 "INSERT INTO correction_requests(user_id,work_date,proposed_start,proposed_end,proposed_break_minutes,reason,created_at) VALUES(?,?,?,?,?,?,?)",
-                (user_id, work_date, start, end, int(break_minutes), reason.strip(), self.db.now()),
+                (
+                    user_id,
+                    work_day.isoformat(),
+                    start_time.strftime("%H:%M"),
+                    end_time.strftime("%H:%M"),
+                    pause,
+                    reason.strip(),
+                    self.db.now(),
+                ),
             )
 
     def list_corrections(self, user_id=None, pending_only=False):

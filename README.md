@@ -87,7 +87,9 @@ Aktuell unterstützte Arten:
 Mitarbeiter wählen Art und Zeitraum und können eine Bemerkung hinterlegen. Neue
 Anträge erhalten zunächst den Status `Offen`. Ein Administrator kann sie
 genehmigen oder ablehnen. In der persönlichen Übersicht bleibt der Status
-nachvollziehbar.
+nachvollziehbar. Offene und genehmigte Anträge eines Mitarbeiters dürfen sich
+nicht überschneiden. Ein abgelehnter Zeitraum kann dagegen erneut beantragt
+werden.
 
 ### Nachträgliche Korrekturen
 
@@ -95,6 +97,9 @@ nachvollziehbar.
 - gewünschter Beginn und gewünschtes Ende
 - gewünschte Pausendauer
 - verpflichtende Begründung
+- Arbeitsende muss nach dem Arbeitsbeginn liegen
+- Pausenzeit muss als ganze, nicht negative Minutenzahl angegeben werden und
+  kürzer als die gesamte Anwesenheitszeit sein
 - Freigabe oder Ablehnung durch einen Administrator
 - genehmigte Korrekturen erzeugen gekennzeichnete Zeitereignisse
 - ursprüngliche Anträge und Prüfdaten bleiben in der Datenbank erhalten
