@@ -463,16 +463,22 @@ class TimeSheetApp(tk.Tk):
                 kind = next(key for key, value in ABSENCE_LABELS.items() if value == type_box.get())
                 self.service.request_absence(self.user["id"], kind, start.get(), end.get(), reason.get())
                 messagebox.showinfo("Gesendet", "Der Antrag wurde zur Genehmigung eingereicht.")
+                reason.delete(0, "end")
                 self.refresh_absences()
             except Exception as exc:
                 messagebox.showerror("Nicht möglich", str(exc))
         ttk.Button(tab, text="Antrag einreichen", command=submit).grid(row=2, column=3, padx=10)
-        ttk.Label(tab, text="Meine Anträge", style="Heading.TLabel").grid(row=5, column=0, columnspan=4, sticky="w", pady=(30, 8))
+        ttk.Label(
+            tab,
+            text="Offene oder genehmigte Anträge dürfen sich zeitlich nicht überschneiden.",
+            style="Muted.TLabel",
+        ).grid(row=5, column=0, columnspan=4, sticky="w", pady=(10, 0))
+        ttk.Label(tab, text="Meine Anträge", style="Heading.TLabel").grid(row=6, column=0, columnspan=4, sticky="w", pady=(24, 8))
         self.absence_tree = ttk.Treeview(tab, columns=("type","start","end","status"), show="headings", height=13)
         for column, label in (("type","Art"),("start","Von"),("end","Bis"),("status","Status")):
             self.absence_tree.heading(column, text=label)
-        self.absence_tree.grid(row=6, column=0, columnspan=4, sticky="nsew")
-        tab.rowconfigure(6, weight=1); tab.columnconfigure(2, weight=1)
+        self.absence_tree.grid(row=7, column=0, columnspan=4, sticky="nsew")
+        tab.rowconfigure(7, weight=1); tab.columnconfigure(2, weight=1)
         self.refresh_absences()
 
     def refresh_absences(self):
@@ -494,14 +500,20 @@ class TimeSheetApp(tk.Tk):
             try:
                 self.service.request_correction(self.user["id"], entries["Datum"].get(), entries["Beginn"].get(), entries["Ende"].get(), entries["Pause (Min.)"].get(), reason.get())
                 messagebox.showinfo("Gesendet", "Die Korrektur wurde zur Genehmigung eingereicht.")
+                reason.delete(0, "end")
                 self.refresh_corrections()
             except Exception as exc: messagebox.showerror("Nicht möglich", str(exc))
         ttk.Button(tab, text="Korrektur einreichen", command=submit).grid(row=2, column=4)
-        ttk.Label(tab, text="Meine Korrekturen", style="Heading.TLabel").grid(row=5, column=0, columnspan=5, sticky="w", pady=(30,8))
+        ttk.Label(
+            tab,
+            text="Ende muss nach Beginn liegen; die Pause muss kürzer als die Anwesenheit sein.",
+            style="Muted.TLabel",
+        ).grid(row=5, column=0, columnspan=5, sticky="w", pady=(10, 0))
+        ttk.Label(tab, text="Meine Korrekturen", style="Heading.TLabel").grid(row=6, column=0, columnspan=5, sticky="w", pady=(24,8))
         self.correction_tree = ttk.Treeview(tab, columns=("date","start","end","break","status"), show="headings", height=13)
         for column,label in (("date","Datum"),("start","Beginn"),("end","Ende"),("break","Pause"),("status","Status")): self.correction_tree.heading(column,text=label)
-        self.correction_tree.grid(row=6,column=0,columnspan=5,sticky="nsew")
-        tab.rowconfigure(6,weight=1); tab.columnconfigure(3,weight=1)
+        self.correction_tree.grid(row=7,column=0,columnspan=5,sticky="nsew")
+        tab.rowconfigure(7,weight=1); tab.columnconfigure(3,weight=1)
         self.refresh_corrections()
 
     def refresh_corrections(self):
