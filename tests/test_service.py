@@ -145,6 +145,22 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual([row["event_type"] for row in events], ["work_start", "break_start", "break_end", "work_end"])
         self.assertTrue(all(row["source"] == "correction" for row in events))
 
+    def test_correction_rejects_end_before_start(self):
+        with self.assertRaisesRegex(ValueError, "nach dem Arbeitsbeginn"):
+            self.service.request_correction(
+                self.user["id"], "2026-08-13", "16:30", "08:00", 30, "Zeiten vertauscht"
+            )
+
+    def test_correction_rejects_invalid_break_duration(self):
+        with self.assertRaisesRegex(ValueError, "ganze Minutenzahl"):
+            self.service.request_correction(
+                self.user["id"], "2026-08-13", "08:00", "16:30", "eine halbe Stunde", "Test"
+            )
+        with self.assertRaisesRegex(ValueError, "kürzer als die Anwesenheitszeit"):
+            self.service.request_correction(
+                self.user["id"], "2026-08-13", "08:00", "08:30", 30, "Test"
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
