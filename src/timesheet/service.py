@@ -290,6 +290,8 @@ class TimeSheetService:
         return (events[-1]["event_type"] if events else None), summarize_events(events)
 
     def request_absence(self, user_id, absence_type, start_date, end_date, reason=""):
+        if absence_type not in ABSENCE_LABELS:
+            raise ValueError("Unbekannte Abwesenheitsart.")
         start, end = date.fromisoformat(start_date), date.fromisoformat(end_date)
         if end < start:
             raise ValueError("Das Enddatum liegt vor dem Startdatum.")
@@ -327,9 +329,15 @@ class TimeSheetService:
         if status not in {"approved", "rejected"}:
             raise ValueError("Ungültiger Status")
         with self.db.connect() as con:
-            con.execute(
+            result = con.execute(
                 "UPDATE absence_requests SET status=?,reviewed_by=?,reviewed_at=? WHERE id=? AND status='pending'",
                 (status, admin_id, self.db.now(), request_id),
+            )
+            if result.rowcount != 1:
+                raise ValueError("Antrag nicht mehr offen.")
+            con.execute(
+                "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
+                (admin_id, "absence_reviewed", f"Antrag #{request_id}: {status}", self.db.now()),
             )
 
     def request_correction(self, user_id, work_date, start, end, break_minutes, reason):
@@ -379,6 +387,8 @@ class TimeSheetService:
         )
 
     def review_correction(self, request_id, admin_id, status):
+        if status not in {"approved", "rejected"}:
+            raise ValueError("Ungültiger Status")
         rows = self.db.rows("SELECT * FROM correction_requests WHERE id=? AND status='pending'", (request_id,))
         if not rows:
             raise ValueError("Antrag nicht mehr offen.")
@@ -387,6 +397,10 @@ class TimeSheetService:
             con.execute(
                 "UPDATE correction_requests SET status=?,reviewed_by=?,reviewed_at=? WHERE id=?",
                 (status, admin_id, self.db.now(), request_id),
+            )
+            con.execute(
+                "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
+                (admin_id, "correction_reviewed", f"Antrag #{request_id}: {status}", self.db.now()),
             )
             if status == "approved":
                 start = datetime.fromisoformat(f"{row['work_date']}T{row['proposed_start']}").astimezone()
