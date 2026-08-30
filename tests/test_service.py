@@ -207,6 +207,31 @@ class ServiceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Ungültiger Status"):
             self.service.review_correction(correction["id"], admin["id"], "archived")
 
+    def test_admin_reviews_are_written_to_audit_log(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.request_absence(
+            self.user["id"], "vacation", "2026-08-17", "2026-08-21"
+        )
+        absence = self.service.list_absences(self.user["id"])[0]
+        self.service.review_absence(absence["id"], admin["id"], "rejected")
+
+        self.service.request_correction(
+            self.user["id"], "2026-08-13", "08:00", "16:30", 30, "Test"
+        )
+        correction = self.service.list_corrections(self.user["id"])[0]
+        self.service.review_correction(correction["id"], admin["id"], "rejected")
+
+        entries = self.db.rows(
+            "SELECT action,details FROM audit_log WHERE actor_user_id=? ORDER BY id",
+            (admin["id"],),
+        )
+        self.assertEqual(
+            [entry["action"] for entry in entries],
+            ["absence_reviewed", "correction_reviewed"],
+        )
+        self.assertTrue(all("rejected" in entry["details"] for entry in entries))
+
     def test_correction_rejects_end_before_start(self):
         with self.assertRaisesRegex(ValueError, "nach dem Arbeitsbeginn"):
             self.service.request_correction(

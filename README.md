@@ -109,6 +109,7 @@ werden.
 - Mitarbeiterkonten anlegen
 - offene Abwesenheitsanträge bearbeiten
 - offene Korrekturanträge bearbeiten
+- Adminentscheidungen zu Anträgen im Audit-Log nachvollziehen
 - Monatsauswertung je Mitarbeiter
 - gesamte erfasste Arbeitszeit
 - Überstunden- beziehungsweise Minusstundensaldo
