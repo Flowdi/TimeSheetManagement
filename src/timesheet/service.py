@@ -290,6 +290,8 @@ class TimeSheetService:
         return (events[-1]["event_type"] if events else None), summarize_events(events)
 
     def request_absence(self, user_id, absence_type, start_date, end_date, reason=""):
+        if absence_type not in ABSENCE_LABELS:
+            raise ValueError("Unbekannte Abwesenheitsart.")
         start, end = date.fromisoformat(start_date), date.fromisoformat(end_date)
         if end < start:
             raise ValueError("Das Enddatum liegt vor dem Startdatum.")

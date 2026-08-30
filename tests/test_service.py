@@ -146,6 +146,13 @@ class ServiceTests(unittest.TestCase):
         )
         self.assertEqual(len(self.service.list_absences(self.user["id"])), 2)
 
+    def test_absence_rejects_unknown_type(self):
+        with self.assertRaisesRegex(ValueError, "Unbekannte Abwesenheitsart"):
+            self.service.request_absence(
+                self.user["id"], "sick_leave", "2026-08-17", "2026-08-18"
+            )
+        self.assertEqual(self.service.list_absences(self.user["id"]), [])
+
     def test_rejected_absence_period_can_be_requested_again(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")
         admin = self.service.authenticate("admin", "Sicher123!")
