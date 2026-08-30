@@ -133,6 +133,18 @@ class ServiceTests(unittest.TestCase):
         )
         self.assertEqual(anna_report["absence_days"], 5)
 
+    def test_absence_cannot_be_reviewed_twice(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.request_absence(
+            self.user["id"], "vacation", "2026-08-17", "2026-08-21"
+        )
+        request = self.service.list_absences(self.user["id"])[0]
+        self.service.review_absence(request["id"], admin["id"], "approved")
+        with self.assertRaisesRegex(ValueError, "nicht mehr offen"):
+            self.service.review_absence(request["id"], admin["id"], "rejected")
+        self.assertEqual(self.service.list_absences(self.user["id"])[0]["status"], "approved")
+
     def test_absence_rejects_overlapping_active_request(self):
         self.service.request_absence(
             self.user["id"], "vacation", "2026-08-17", "2026-08-21"
@@ -177,6 +189,23 @@ class ServiceTests(unittest.TestCase):
         events = self.service.events_for_day(self.user["id"], datetime.fromisoformat("2026-08-13").date())
         self.assertEqual([row["event_type"] for row in events], ["work_start", "break_start", "break_end", "work_end"])
         self.assertTrue(all(row["source"] == "correction" for row in events))
+
+    def test_reviews_reject_unknown_status(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.request_absence(
+            self.user["id"], "vacation", "2026-08-17", "2026-08-21"
+        )
+        absence = self.service.list_absences(self.user["id"])[0]
+        with self.assertRaisesRegex(ValueError, "Ungültiger Status"):
+            self.service.review_absence(absence["id"], admin["id"], "archived")
+
+        self.service.request_correction(
+            self.user["id"], "2026-08-13", "08:00", "16:30", 30, "Test"
+        )
+        correction = self.service.list_corrections(self.user["id"])[0]
+        with self.assertRaisesRegex(ValueError, "Ungültiger Status"):
+            self.service.review_correction(correction["id"], admin["id"], "archived")
 
     def test_correction_rejects_end_before_start(self):
         with self.assertRaisesRegex(ValueError, "nach dem Arbeitsbeginn"):

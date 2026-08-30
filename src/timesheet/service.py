@@ -329,10 +329,12 @@ class TimeSheetService:
         if status not in {"approved", "rejected"}:
             raise ValueError("Ungültiger Status")
         with self.db.connect() as con:
-            con.execute(
+            result = con.execute(
                 "UPDATE absence_requests SET status=?,reviewed_by=?,reviewed_at=? WHERE id=? AND status='pending'",
                 (status, admin_id, self.db.now(), request_id),
             )
+            if result.rowcount != 1:
+                raise ValueError("Antrag nicht mehr offen.")
 
     def request_correction(self, user_id, work_date, start, end, break_minutes, reason):
         work_day = date.fromisoformat(work_date)
@@ -381,6 +383,8 @@ class TimeSheetService:
         )
 
     def review_correction(self, request_id, admin_id, status):
+        if status not in {"approved", "rejected"}:
+            raise ValueError("Ungültiger Status")
         rows = self.db.rows("SELECT * FROM correction_requests WHERE id=? AND status='pending'", (request_id,))
         if not rows:
             raise ValueError("Antrag nicht mehr offen.")
