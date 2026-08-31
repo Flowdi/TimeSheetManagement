@@ -24,6 +24,16 @@ class ServiceTests(unittest.TestCase):
         self.assertIsNotNone(self.user)
         self.assertIsNone(self.service.authenticate("anna", "falsch"))
 
+    def test_user_creation_rejects_duplicate_username(self):
+        with self.assertRaisesRegex(ValueError, "bereits vergeben"):
+            self.service.create_user("ANNA", "Andere Anna", "Sicher456!", "employee")
+        self.assertEqual(len(self.service.list_users()), 1)
+
+    def test_user_creation_rejects_unknown_role(self):
+        with self.assertRaisesRegex(ValueError, "Ungültige Benutzerrolle"):
+            self.service.create_user("extern", "Externe Person", "Sicher456!", "owner")
+        self.assertEqual(len(self.service.list_users()), 1)
+
     def test_user_can_change_own_password(self):
         self.service.change_password(self.user["id"], "Sicher123!", "NochSicherer456!")
         self.assertIsNone(self.service.authenticate("anna", "Sicher123!"))

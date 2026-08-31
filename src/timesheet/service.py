@@ -107,6 +107,10 @@ class TimeSheetService:
         username, display_name = username.strip(), display_name.strip()
         if not username or not display_name or len(password) < 8:
             raise ValueError("Name erforderlich; Passwort muss mindestens 8 Zeichen haben.")
+        if role not in {"employee", "admin"}:
+            raise ValueError("Ungültige Benutzerrolle.")
+        if self.db.scalar("SELECT COUNT(*) FROM users WHERE username=?", (username,)):
+            raise ValueError("Dieser Benutzername ist bereits vergeben.")
         with self.db.connect() as con:
             con.execute(
                 "INSERT INTO users(username,display_name,password_hash,role,created_at) VALUES(?,?,?,?,?)",
