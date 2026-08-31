@@ -256,6 +256,24 @@ class ServiceTests(unittest.TestCase):
         )
         self.assertTrue(all("rejected" in entry["details"] for entry in entries))
 
+    def test_submitted_requests_are_written_to_audit_log(self):
+        self.service.request_absence(
+            self.user["id"], "vacation", "2026-08-17", "2026-08-21"
+        )
+        self.service.request_correction(
+            self.user["id"], "2026-08-13", "08:00", "16:30", 30, "Test"
+        )
+        entries = self.db.rows(
+            "SELECT action,details FROM audit_log WHERE actor_user_id=? ORDER BY id",
+            (self.user["id"],),
+        )
+        self.assertEqual(
+            [entry["action"] for entry in entries],
+            ["absence_requested", "correction_requested"],
+        )
+        self.assertIn("2026-08-17 bis 2026-08-21", entries[0]["details"])
+        self.assertIn("2026-08-13", entries[1]["details"])
+
     def test_correction_rejects_end_before_start(self):
         with self.assertRaisesRegex(ValueError, "nach dem Arbeitsbeginn"):
             self.service.request_correction(

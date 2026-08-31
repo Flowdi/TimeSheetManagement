@@ -328,9 +328,18 @@ class TimeSheetService:
                 raise ValueError(
                     "Für diesen Zeitraum besteht bereits ein offener oder genehmigter Abwesenheitsantrag."
                 )
-            con.execute(
+            result = con.execute(
                 "INSERT INTO absence_requests(user_id,absence_type,start_date,end_date,reason,created_at) VALUES(?,?,?,?,?,?)",
                 (user_id, absence_type, start.isoformat(), end.isoformat(), reason.strip(), self.db.now()),
+            )
+            con.execute(
+                "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
+                (
+                    user_id,
+                    "absence_requested",
+                    f"Antrag #{result.lastrowid}: {absence_type}, {start.isoformat()} bis {end.isoformat()}",
+                    self.db.now(),
+                ),
             )
 
     def list_absences(self, user_id=None, pending_only=False):
@@ -389,7 +398,7 @@ class TimeSheetService:
             ).fetchone()
             if pending:
                 raise ValueError("Für diesen Arbeitstag besteht bereits ein offener Korrekturantrag.")
-            con.execute(
+            result = con.execute(
                 "INSERT INTO correction_requests(user_id,work_date,proposed_start,proposed_end,proposed_break_minutes,reason,created_at) VALUES(?,?,?,?,?,?,?)",
                 (
                     user_id,
@@ -398,6 +407,15 @@ class TimeSheetService:
                     end_time.strftime("%H:%M"),
                     pause,
                     reason.strip(),
+                    self.db.now(),
+                ),
+            )
+            con.execute(
+                "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
+                (
+                    user_id,
+                    "correction_requested",
+                    f"Antrag #{result.lastrowid}: {work_day.isoformat()}",
                     self.db.now(),
                 ),
             )
