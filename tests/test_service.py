@@ -272,6 +272,29 @@ class ServiceTests(unittest.TestCase):
                 self.user["id"], "2026-08-13", "08:00", "08:30", 30, "Test"
             )
 
+    def test_correction_rejects_second_pending_request_for_same_day(self):
+        self.service.request_correction(
+            self.user["id"], "2026-08-13", "08:00", "16:30", 30, "Erster Antrag"
+        )
+        with self.assertRaisesRegex(ValueError, "bereits ein offener Korrekturantrag"):
+            self.service.request_correction(
+                self.user["id"], "2026-08-13", "08:15", "16:45", 30, "Zweiter Antrag"
+            )
+        self.assertEqual(len(self.service.list_corrections(self.user["id"])), 1)
+
+    def test_rejected_correction_can_be_requested_again(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.request_correction(
+            self.user["id"], "2026-08-13", "08:00", "16:30", 30, "Erster Antrag"
+        )
+        request = self.service.list_corrections(self.user["id"])[0]
+        self.service.review_correction(request["id"], admin["id"], "rejected")
+        self.service.request_correction(
+            self.user["id"], "2026-08-13", "08:15", "16:45", 30, "Neuer Antrag"
+        )
+        self.assertEqual(len(self.service.list_corrections(self.user["id"])), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

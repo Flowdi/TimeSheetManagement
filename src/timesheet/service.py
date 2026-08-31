@@ -381,6 +381,14 @@ class TimeSheetService:
         if not reason.strip():
             raise ValueError("Für die Zeitkorrektur ist eine Begründung erforderlich.")
         with self.db.connect() as con:
+            pending = con.execute(
+                """SELECT id FROM correction_requests
+                   WHERE user_id=? AND work_date=? AND status='pending'
+                   LIMIT 1""",
+                (user_id, work_day.isoformat()),
+            ).fetchone()
+            if pending:
+                raise ValueError("Für diesen Arbeitstag besteht bereits ein offener Korrekturantrag.")
             con.execute(
                 "INSERT INTO correction_requests(user_id,work_date,proposed_start,proposed_end,proposed_break_minutes,reason,created_at) VALUES(?,?,?,?,?,?,?)",
                 (
