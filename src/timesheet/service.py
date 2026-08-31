@@ -103,7 +103,14 @@ class TimeSheetService:
     def has_users(self) -> bool:
         return bool(self.db.scalar("SELECT COUNT(*) FROM users"))
 
-    def create_user(self, username: str, display_name: str, password: str, role="employee"):
+    def create_user(
+        self,
+        username: str,
+        display_name: str,
+        password: str,
+        role="employee",
+        actor_user_id: int | None = None,
+    ):
         username, display_name = username.strip(), display_name.strip()
         if not username or not display_name or len(password) < 8:
             raise ValueError("Name erforderlich; Passwort muss mindestens 8 Zeichen haben.")
@@ -112,10 +119,20 @@ class TimeSheetService:
         if self.db.scalar("SELECT COUNT(*) FROM users WHERE username=?", (username,)):
             raise ValueError("Dieser Benutzername ist bereits vergeben.")
         with self.db.connect() as con:
-            con.execute(
+            result = con.execute(
                 "INSERT INTO users(username,display_name,password_hash,role,created_at) VALUES(?,?,?,?,?)",
                 (username, display_name, hash_password(password), role, self.db.now()),
             )
+            if actor_user_id is not None:
+                con.execute(
+                    "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
+                    (
+                        actor_user_id,
+                        "user_created",
+                        f"Benutzer #{result.lastrowid} ({username}), Rolle: {role}",
+                        self.db.now(),
+                    ),
+                )
 
     def authenticate(self, username: str, password: str):
         rows = self.db.rows("SELECT * FROM users WHERE username=? AND active=1", (username.strip(),))

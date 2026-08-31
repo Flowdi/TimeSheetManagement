@@ -34,6 +34,20 @@ class ServiceTests(unittest.TestCase):
             self.service.create_user("extern", "Externe Person", "Sicher456!", "owner")
         self.assertEqual(len(self.service.list_users()), 1)
 
+    def test_admin_user_creation_is_audited(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.create_user(
+            "berta", "Berta", "Sicher456!", "employee", actor_user_id=admin["id"]
+        )
+        entry = self.db.rows(
+            "SELECT action,details FROM audit_log WHERE actor_user_id=? ORDER BY id DESC",
+            (admin["id"],),
+        )[0]
+        self.assertEqual(entry["action"], "user_created")
+        self.assertIn("berta", entry["details"])
+        self.assertIn("employee", entry["details"])
+
     def test_user_can_change_own_password(self):
         self.service.change_password(self.user["id"], "Sicher123!", "NochSicherer456!")
         self.assertIsNone(self.service.authenticate("anna", "Sicher123!"))
