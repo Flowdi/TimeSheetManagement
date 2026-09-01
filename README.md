@@ -116,6 +116,11 @@ werden.
 - genehmigte Abwesenheitstage
 - Anzahl der Tage mit Pausen- oder Arbeitszeitwarnungen
 
+Administrationsentscheidungen werden zusätzlich in der Service-Schicht geprüft:
+Nur aktive Administratorkonten dürfen Abwesenheiten oder Zeitkorrekturen
+genehmigen und ablehnen. Deaktivierte Konten können keine Arbeitszeiten oder
+neuen Anträge mehr erfassen.
+
 ### Darstellung
 
 - standardmäßig aktivierter Dark Mode

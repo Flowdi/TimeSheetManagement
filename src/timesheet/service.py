@@ -357,6 +357,7 @@ class TimeSheetService:
             )
 
     def request_correction(self, user_id, work_date, start, end, break_minutes, reason):
+        self._require_active_user(user_id)
         work_day = date.fromisoformat(work_date)
         start_time = time.fromisoformat(start)
         end_time = time.fromisoformat(end)

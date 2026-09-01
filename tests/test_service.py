@@ -293,6 +293,17 @@ class ServiceTests(unittest.TestCase):
                 self.user["id"], "2026-08-13", "16:30", "08:00", 30, "Zeiten vertauscht"
             )
 
+    def test_inactive_user_cannot_request_correction(self):
+        with self.db.connect() as connection:
+            connection.execute(
+                "UPDATE users SET active=0 WHERE id=?", (self.user["id"],)
+            )
+        with self.assertRaisesRegex(PermissionError, "nicht aktiv"):
+            self.service.request_correction(
+                self.user["id"], "2026-08-13", "08:00", "16:30", 30, "Test"
+            )
+        self.assertEqual(self.service.list_corrections(self.user["id"]), [])
+
     def test_correction_rejects_invalid_break_duration(self):
         with self.assertRaisesRegex(ValueError, "ganze Minutenzahl"):
             self.service.request_correction(
