@@ -24,6 +24,30 @@ class ServiceTests(unittest.TestCase):
         self.assertIsNotNone(self.user)
         self.assertIsNone(self.service.authenticate("anna", "falsch"))
 
+    def test_user_creation_rejects_duplicate_username(self):
+        with self.assertRaisesRegex(ValueError, "bereits vergeben"):
+            self.service.create_user("ANNA", "Andere Anna", "Sicher456!", "employee")
+        self.assertEqual(len(self.service.list_users()), 1)
+
+    def test_user_creation_rejects_unknown_role(self):
+        with self.assertRaisesRegex(ValueError, "Ungültige Benutzerrolle"):
+            self.service.create_user("extern", "Externe Person", "Sicher456!", "owner")
+        self.assertEqual(len(self.service.list_users()), 1)
+
+    def test_admin_user_creation_is_audited(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.create_user(
+            "berta", "Berta", "Sicher456!", "employee", actor_user_id=admin["id"]
+        )
+        entry = self.db.rows(
+            "SELECT action,details FROM audit_log WHERE actor_user_id=? ORDER BY id DESC",
+            (admin["id"],),
+        )[0]
+        self.assertEqual(entry["action"], "user_created")
+        self.assertIn("berta", entry["details"])
+        self.assertIn("employee", entry["details"])
+
     def test_user_can_change_own_password(self):
         self.service.change_password(self.user["id"], "Sicher123!", "NochSicherer456!")
         self.assertIsNone(self.service.authenticate("anna", "Sicher123!"))
@@ -287,6 +311,24 @@ class ServiceTests(unittest.TestCase):
         )
         self.assertTrue(all("rejected" in entry["details"] for entry in entries))
 
+    def test_submitted_requests_are_written_to_audit_log(self):
+        self.service.request_absence(
+            self.user["id"], "vacation", "2026-08-17", "2026-08-21"
+        )
+        self.service.request_correction(
+            self.user["id"], "2026-08-13", "08:00", "16:30", 30, "Test"
+        )
+        entries = self.db.rows(
+            "SELECT action,details FROM audit_log WHERE actor_user_id=? ORDER BY id",
+            (self.user["id"],),
+        )
+        self.assertEqual(
+            [entry["action"] for entry in entries],
+            ["absence_requested", "correction_requested"],
+        )
+        self.assertIn("2026-08-17 bis 2026-08-21", entries[0]["details"])
+        self.assertIn("2026-08-13", entries[1]["details"])
+
     def test_correction_rejects_end_before_start(self):
         with self.assertRaisesRegex(ValueError, "nach dem Arbeitsbeginn"):
             self.service.request_correction(
@@ -313,6 +355,29 @@ class ServiceTests(unittest.TestCase):
             self.service.request_correction(
                 self.user["id"], "2026-08-13", "08:00", "08:30", 30, "Test"
             )
+
+    def test_correction_rejects_second_pending_request_for_same_day(self):
+        self.service.request_correction(
+            self.user["id"], "2026-08-13", "08:00", "16:30", 30, "Erster Antrag"
+        )
+        with self.assertRaisesRegex(ValueError, "bereits ein offener Korrekturantrag"):
+            self.service.request_correction(
+                self.user["id"], "2026-08-13", "08:15", "16:45", 30, "Zweiter Antrag"
+            )
+        self.assertEqual(len(self.service.list_corrections(self.user["id"])), 1)
+
+    def test_rejected_correction_can_be_requested_again(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.request_correction(
+            self.user["id"], "2026-08-13", "08:00", "16:30", 30, "Erster Antrag"
+        )
+        request = self.service.list_corrections(self.user["id"])[0]
+        self.service.review_correction(request["id"], admin["id"], "rejected")
+        self.service.request_correction(
+            self.user["id"], "2026-08-13", "08:15", "16:45", 30, "Neuer Antrag"
+        )
+        self.assertEqual(len(self.service.list_corrections(self.user["id"])), 2)
 
 
 if __name__ == "__main__":

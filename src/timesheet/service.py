@@ -116,15 +116,36 @@ class TimeSheetService:
         ):
             raise PermissionError("Das Benutzerkonto ist nicht aktiv.")
 
-    def create_user(self, username: str, display_name: str, password: str, role="employee"):
+    def create_user(
+        self,
+        username: str,
+        display_name: str,
+        password: str,
+        role="employee",
+        actor_user_id: int | None = None,
+    ):
         username, display_name = username.strip(), display_name.strip()
         if not username or not display_name or len(password) < 8:
             raise ValueError("Name erforderlich; Passwort muss mindestens 8 Zeichen haben.")
+        if role not in {"employee", "admin"}:
+            raise ValueError("Ungültige Benutzerrolle.")
+        if self.db.scalar("SELECT COUNT(*) FROM users WHERE username=?", (username,)):
+            raise ValueError("Dieser Benutzername ist bereits vergeben.")
         with self.db.connect() as con:
-            con.execute(
+            result = con.execute(
                 "INSERT INTO users(username,display_name,password_hash,role,created_at) VALUES(?,?,?,?,?)",
                 (username, display_name, hash_password(password), role, self.db.now()),
             )
+            if actor_user_id is not None:
+                con.execute(
+                    "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
+                    (
+                        actor_user_id,
+                        "user_created",
+                        f"Benutzer #{result.lastrowid} ({username}), Rolle: {role}",
+                        self.db.now(),
+                    ),
+                )
 
     def authenticate(self, username: str, password: str):
         rows = self.db.rows("SELECT * FROM users WHERE username=? AND active=1", (username.strip(),))
@@ -322,9 +343,18 @@ class TimeSheetService:
                 raise ValueError(
                     "Für diesen Zeitraum besteht bereits ein offener oder genehmigter Abwesenheitsantrag."
                 )
-            con.execute(
+            result = con.execute(
                 "INSERT INTO absence_requests(user_id,absence_type,start_date,end_date,reason,created_at) VALUES(?,?,?,?,?,?)",
                 (user_id, absence_type, start.isoformat(), end.isoformat(), reason.strip(), self.db.now()),
+            )
+            con.execute(
+                "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
+                (
+                    user_id,
+                    "absence_requested",
+                    f"Antrag #{result.lastrowid}: {absence_type}, {start.isoformat()} bis {end.isoformat()}",
+                    self.db.now(),
+                ),
             )
 
     def list_absences(self, user_id=None, pending_only=False):
@@ -377,7 +407,15 @@ class TimeSheetService:
         if not reason.strip():
             raise ValueError("Für die Zeitkorrektur ist eine Begründung erforderlich.")
         with self.db.connect() as con:
-            con.execute(
+            pending = con.execute(
+                """SELECT id FROM correction_requests
+                   WHERE user_id=? AND work_date=? AND status='pending'
+                   LIMIT 1""",
+                (user_id, work_day.isoformat()),
+            ).fetchone()
+            if pending:
+                raise ValueError("Für diesen Arbeitstag besteht bereits ein offener Korrekturantrag.")
+            result = con.execute(
                 "INSERT INTO correction_requests(user_id,work_date,proposed_start,proposed_end,proposed_break_minutes,reason,created_at) VALUES(?,?,?,?,?,?,?)",
                 (
                     user_id,
@@ -386,6 +424,15 @@ class TimeSheetService:
                     end_time.strftime("%H:%M"),
                     pause,
                     reason.strip(),
+                    self.db.now(),
+                ),
+            )
+            con.execute(
+                "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
+                (
+                    user_id,
+                    "correction_requested",
+                    f"Antrag #{result.lastrowid}: {work_day.isoformat()}",
                     self.db.now(),
                 ),
             )
