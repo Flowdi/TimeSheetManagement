@@ -539,6 +539,7 @@ class TimeSheetApp(tk.Tk):
                     actor_user_id=self.user["id"],
                 )
                 messagebox.showinfo("Erstellt", "Mitarbeiterkonto wurde angelegt.")
+                self.refresh_admin()
             except Exception as exc: messagebox.showerror("Nicht möglich", str(exc))
         ttk.Button(user_box,text="Mitarbeiter anlegen",command=add_user).grid(row=1,column=3)
         google_box = ttk.LabelFrame(tab, text="Google Sheets", padding=12)
@@ -608,9 +609,31 @@ class TimeSheetApp(tk.Tk):
         self.queue_status_label = ttk.Label(google_box, style="Muted.TLabel")
         self.queue_status_label.grid(row=4, column=0, columnspan=3, sticky="w", pady=(4, 0))
         self.refresh_sync_status()
+        users_frame = ttk.LabelFrame(tab, text="Mitarbeiterkonten", padding=8)
+        users_frame.pack(fill="x", pady=(0, 12))
+        self.user_tree = ttk.Treeview(
+            users_frame,
+            columns=("username", "name", "role", "status"),
+            show="headings",
+            height=5,
+        )
+        for column, label in (
+            ("username", "Benutzername"),
+            ("name", "Anzeigename"),
+            ("role", "Rolle"),
+            ("status", "Status"),
+        ):
+            self.user_tree.heading(column, text=label)
+        self.user_tree.pack(fill="x")
+        ttk.Button(
+            users_frame,
+            text="Ausgewähltes Konto aktivieren / deaktivieren",
+            command=self.toggle_selected_user,
+        ).pack(anchor="w", pady=(6, 0))
         panes = ttk.Panedwindow(tab, orient="horizontal"); panes.pack(fill="both",expand=True)
         absence_frame=ttk.LabelFrame(panes,text="Offene Abwesenheiten",padding=8); correction_frame=ttk.LabelFrame(panes,text="Offene Korrekturen",padding=8)
-        panes.add(absence_frame,weight=1); panes.add(correction_frame,weight=1)
+        audit_frame = ttk.LabelFrame(panes, text="Audit-Verlauf", padding=8)
+        panes.add(absence_frame,weight=1); panes.add(correction_frame,weight=1); panes.add(audit_frame, weight=1)
         self.pending_absence_tree=ttk.Treeview(absence_frame,columns=("name","type","range"),show="headings",height=12)
         for c,l in (("name","Mitarbeiter"),("type","Art"),("range","Zeitraum")): self.pending_absence_tree.heading(c,text=l)
         self.pending_absence_tree.pack(fill="both",expand=True)
@@ -623,15 +646,70 @@ class TimeSheetApp(tk.Tk):
         row=ttk.Frame(correction_frame); row.pack(fill="x",pady=6)
         ttk.Button(row,text="Genehmigen",command=lambda:self.review_selected_correction("approved")).pack(side="left")
         ttk.Button(row,text="Ablehnen",command=lambda:self.review_selected_correction("rejected")).pack(side="left",padx=6)
+        self.audit_tree = ttk.Treeview(
+            audit_frame,
+            columns=("time", "actor", "action", "details"),
+            show="headings",
+            height=12,
+        )
+        for column, label in (
+            ("time", "Zeitpunkt"),
+            ("actor", "Akteur"),
+            ("action", "Aktion"),
+            ("details", "Details"),
+        ):
+            self.audit_tree.heading(column, text=label)
+        self.audit_tree.pack(fill="both", expand=True)
         self.refresh_admin()
 
     def refresh_admin(self):
+        for item in self.user_tree.get_children(): self.user_tree.delete(item)
+        for user in self.service.list_users():
+            self.user_tree.insert(
+                "",
+                "end",
+                iid=str(user["id"]),
+                values=(
+                    user["username"],
+                    user["display_name"],
+                    "Administrator" if user["role"] == "admin" else "Mitarbeiter",
+                    "Aktiv" if user["active"] else "Deaktiviert",
+                ),
+            )
         for item in self.pending_absence_tree.get_children(): self.pending_absence_tree.delete(item)
         for row in self.service.list_absences(pending_only=True):
             self.pending_absence_tree.insert("","end",iid=str(row["id"]),values=(row["display_name"],ABSENCE_LABELS[row["absence_type"]],f"{row['start_date']} – {row['end_date']}"))
         for item in self.pending_correction_tree.get_children(): self.pending_correction_tree.delete(item)
         for row in self.service.list_corrections(pending_only=True):
             self.pending_correction_tree.insert("","end",iid=str(row["id"]),values=(row["display_name"],row["work_date"],f"{row['proposed_start']}–{row['proposed_end']}, {row['proposed_break_minutes']} Min."))
+        for item in self.audit_tree.get_children(): self.audit_tree.delete(item)
+        for entry in self.service.list_audit_entries(self.user["id"]):
+            stamp = datetime.fromisoformat(entry["created_at"]).strftime("%d.%m.%Y %H:%M")
+            self.audit_tree.insert(
+                "",
+                "end",
+                values=(stamp, entry["actor_name"], entry["action"], entry["details"]),
+            )
+
+    def toggle_selected_user(self):
+        selection = self.user_tree.selection()
+        if not selection:
+            messagebox.showinfo("Mitarbeiterkonto", "Bitte zuerst ein Konto auswählen.")
+            return
+        user_id = int(selection[0])
+        user = next(row for row in self.service.list_users() if row["id"] == user_id)
+        activate = not bool(user["active"])
+        action = "aktivieren" if activate else "deaktivieren"
+        if not messagebox.askyesno(
+            "Mitarbeiterkonto",
+            f"Konto von {user['display_name']} wirklich {action}?",
+        ):
+            return
+        try:
+            self.service.set_user_active(user_id, activate, self.user["id"])
+            self.refresh_admin()
+        except Exception as exc:
+            messagebox.showerror("Nicht möglich", str(exc))
 
     def review_selected_absence(self,status):
         selection=self.pending_absence_tree.selection()
