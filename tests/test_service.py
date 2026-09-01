@@ -49,6 +49,24 @@ class ServiceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.service.record_event(self.user["id"], "break_start")
 
+    def test_inactive_user_cannot_record_time_event(self):
+        with self.db.connect() as connection:
+            connection.execute(
+                "UPDATE users SET active=0 WHERE id=?", (self.user["id"],)
+            )
+        with self.assertRaisesRegex(PermissionError, "nicht aktiv"):
+            self.service.record_event(
+                self.user["id"],
+                "work_start",
+                datetime.fromisoformat("2026-08-14T08:00:00").astimezone(),
+            )
+        self.assertEqual(
+            self.service.events_for_day(
+                self.user["id"], datetime.fromisoformat("2026-08-14").date()
+            ),
+            [],
+        )
+
     def test_time_event_is_persisted_in_sync_queue(self):
         timestamp = datetime.fromisoformat("2026-08-14T08:00:00").astimezone()
         self.service.record_event(self.user["id"], "work_start", timestamp)

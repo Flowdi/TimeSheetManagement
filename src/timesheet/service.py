@@ -110,6 +110,12 @@ class TimeSheetService:
         if role != "admin":
             raise PermissionError("Diese Aktion erfordert ein aktives Administratorkonto.")
 
+    def _require_active_user(self, user_id: int):
+        if not self.db.scalar(
+            "SELECT COUNT(*) FROM users WHERE id=? AND active=1", (user_id,)
+        ):
+            raise PermissionError("Das Benutzerkonto ist nicht aktiv.")
+
     def create_user(self, username: str, display_name: str, password: str, role="employee"):
         username, display_name = username.strip(), display_name.strip()
         if not username or not display_name or len(password) < 8:
@@ -202,6 +208,7 @@ class TimeSheetService:
         ]
 
     def record_event(self, user_id: int, event_type: str, occurred_at: datetime | None = None):
+        self._require_active_user(user_id)
         occurred_at = occurred_at or datetime.now().astimezone()
         day = occurred_at.date().isoformat()
         events = self.events_for_day(user_id, occurred_at.date())
