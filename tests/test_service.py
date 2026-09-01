@@ -72,6 +72,20 @@ class ServiceTests(unittest.TestCase):
             self.service.set_user_active(admin["id"], False, admin["id"])
         self.assertIsNotNone(self.service.authenticate("admin", "Sicher123!"))
 
+    def test_only_admin_can_list_recent_audit_entries(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.change_password(
+            self.user["id"], "Sicher123!", "NochSicherer456!"
+        )
+        self.service.set_user_active(self.user["id"], False, admin["id"])
+        entries = self.service.list_audit_entries(admin["id"], limit=1)
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0]["actor_name"], "Admin")
+        self.assertEqual(entries[0]["action"], "user_status_changed")
+        with self.assertRaisesRegex(PermissionError, "Administratorkonto"):
+            self.service.list_audit_entries(self.user["id"])
+
     def test_user_can_change_own_password(self):
         self.service.change_password(self.user["id"], "Sicher123!", "NochSicherer456!")
         self.assertIsNone(self.service.authenticate("anna", "Sicher123!"))

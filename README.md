@@ -111,6 +111,8 @@ werden.
 - offene Korrekturanträge bearbeiten
 - Einreichung und Adminentscheidungen zu Anträgen im Audit-Log nachvollziehen
 - administrativ angelegte Mitarbeiterkonten mit ausführendem Admin protokollieren
+- Mitarbeiterkonten deaktivieren und später wieder aktivieren
+- Audit-Verlauf mit Zeitpunkt, Akteur, Aktion und Details einsehen
 - Monatsauswertung je Mitarbeiter
 - gesamte erfasste Arbeitszeit
 - Überstunden- beziehungsweise Minusstundensaldo

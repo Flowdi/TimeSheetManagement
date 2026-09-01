@@ -200,6 +200,19 @@ class TimeSheetService:
                 ),
             )
 
+    def list_audit_entries(self, admin_id: int, limit: int = 100):
+        self._require_admin(admin_id)
+        safe_limit = max(1, min(int(limit), 500))
+        return self.db.rows(
+            """SELECT l.id,l.action,l.details,l.created_at,
+                      COALESCE(u.display_name,'System') AS actor_name
+               FROM audit_log l
+               LEFT JOIN users u ON u.id=l.actor_user_id
+               ORDER BY l.id DESC
+               LIMIT ?""",
+            (safe_limit,),
+        )
+
     def event_days(self, user_id: int):
         return [
             date.fromisoformat(row["work_date"])

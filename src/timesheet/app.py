@@ -632,7 +632,8 @@ class TimeSheetApp(tk.Tk):
         ).pack(anchor="w", pady=(6, 0))
         panes = ttk.Panedwindow(tab, orient="horizontal"); panes.pack(fill="both",expand=True)
         absence_frame=ttk.LabelFrame(panes,text="Offene Abwesenheiten",padding=8); correction_frame=ttk.LabelFrame(panes,text="Offene Korrekturen",padding=8)
-        panes.add(absence_frame,weight=1); panes.add(correction_frame,weight=1)
+        audit_frame = ttk.LabelFrame(panes, text="Audit-Verlauf", padding=8)
+        panes.add(absence_frame,weight=1); panes.add(correction_frame,weight=1); panes.add(audit_frame, weight=1)
         self.pending_absence_tree=ttk.Treeview(absence_frame,columns=("name","type","range"),show="headings",height=12)
         for c,l in (("name","Mitarbeiter"),("type","Art"),("range","Zeitraum")): self.pending_absence_tree.heading(c,text=l)
         self.pending_absence_tree.pack(fill="both",expand=True)
@@ -645,6 +646,20 @@ class TimeSheetApp(tk.Tk):
         row=ttk.Frame(correction_frame); row.pack(fill="x",pady=6)
         ttk.Button(row,text="Genehmigen",command=lambda:self.review_selected_correction("approved")).pack(side="left")
         ttk.Button(row,text="Ablehnen",command=lambda:self.review_selected_correction("rejected")).pack(side="left",padx=6)
+        self.audit_tree = ttk.Treeview(
+            audit_frame,
+            columns=("time", "actor", "action", "details"),
+            show="headings",
+            height=12,
+        )
+        for column, label in (
+            ("time", "Zeitpunkt"),
+            ("actor", "Akteur"),
+            ("action", "Aktion"),
+            ("details", "Details"),
+        ):
+            self.audit_tree.heading(column, text=label)
+        self.audit_tree.pack(fill="both", expand=True)
         self.refresh_admin()
 
     def refresh_admin(self):
@@ -667,6 +682,14 @@ class TimeSheetApp(tk.Tk):
         for item in self.pending_correction_tree.get_children(): self.pending_correction_tree.delete(item)
         for row in self.service.list_corrections(pending_only=True):
             self.pending_correction_tree.insert("","end",iid=str(row["id"]),values=(row["display_name"],row["work_date"],f"{row['proposed_start']}–{row['proposed_end']}, {row['proposed_break_minutes']} Min."))
+        for item in self.audit_tree.get_children(): self.audit_tree.delete(item)
+        for entry in self.service.list_audit_entries(self.user["id"]):
+            stamp = datetime.fromisoformat(entry["created_at"]).strftime("%d.%m.%Y %H:%M")
+            self.audit_tree.insert(
+                "",
+                "end",
+                values=(stamp, entry["actor_name"], entry["action"], entry["details"]),
+            )
 
     def toggle_selected_user(self):
         selection = self.user_tree.selection()
