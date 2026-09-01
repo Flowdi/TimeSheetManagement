@@ -109,7 +109,8 @@ werden.
 - Mitarbeiterkonten anlegen
 - offene Abwesenheitsanträge bearbeiten
 - offene Korrekturanträge bearbeiten
-- Adminentscheidungen zu Anträgen im Audit-Log nachvollziehen
+- Einreichung und Adminentscheidungen zu Anträgen im Audit-Log nachvollziehen
+- administrativ angelegte Mitarbeiterkonten mit ausführendem Admin protokollieren
 - Monatsauswertung je Mitarbeiter
 - gesamte erfasste Arbeitszeit
 - Überstunden- beziehungsweise Minusstundensaldo

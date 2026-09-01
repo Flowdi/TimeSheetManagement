@@ -532,7 +532,12 @@ class TimeSheetApp(tk.Tk):
             entry=ttk.Entry(user_box,width=22,show="*" if label=="Passwort" else ""); entry.grid(row=1,column=col,padx=(0,10)); fields[label]=entry
         def add_user():
             try:
-                self.service.create_user(fields["Benutzername"].get(), fields["Anzeigename"].get(), fields["Passwort"].get())
+                self.service.create_user(
+                    fields["Benutzername"].get(),
+                    fields["Anzeigename"].get(),
+                    fields["Passwort"].get(),
+                    actor_user_id=self.user["id"],
+                )
                 messagebox.showinfo("Erstellt", "Mitarbeiterkonto wurde angelegt.")
             except Exception as exc: messagebox.showerror("Nicht möglich", str(exc))
         ttk.Button(user_box,text="Mitarbeiter anlegen",command=add_user).grid(row=1,column=3)
