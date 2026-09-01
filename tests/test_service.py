@@ -73,6 +73,24 @@ class ServiceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.service.record_event(self.user["id"], "break_start")
 
+    def test_inactive_user_cannot_record_time_event(self):
+        with self.db.connect() as connection:
+            connection.execute(
+                "UPDATE users SET active=0 WHERE id=?", (self.user["id"],)
+            )
+        with self.assertRaisesRegex(PermissionError, "nicht aktiv"):
+            self.service.record_event(
+                self.user["id"],
+                "work_start",
+                datetime.fromisoformat("2026-08-14T08:00:00").astimezone(),
+            )
+        self.assertEqual(
+            self.service.events_for_day(
+                self.user["id"], datetime.fromisoformat("2026-08-14").date()
+            ),
+            [],
+        )
+
     def test_time_event_is_persisted_in_sync_queue(self):
         timestamp = datetime.fromisoformat("2026-08-14T08:00:00").astimezone()
         self.service.record_event(self.user["id"], "work_start", timestamp)
@@ -169,6 +187,15 @@ class ServiceTests(unittest.TestCase):
             self.service.review_absence(request["id"], admin["id"], "rejected")
         self.assertEqual(self.service.list_absences(self.user["id"])[0]["status"], "approved")
 
+    def test_employee_cannot_review_absence(self):
+        self.service.request_absence(
+            self.user["id"], "vacation", "2026-08-17", "2026-08-21"
+        )
+        request = self.service.list_absences(self.user["id"])[0]
+        with self.assertRaisesRegex(PermissionError, "Administratorkonto"):
+            self.service.review_absence(request["id"], self.user["id"], "approved")
+        self.assertEqual(self.service.list_absences(self.user["id"])[0]["status"], "pending")
+
     def test_absence_rejects_overlapping_active_request(self):
         self.service.request_absence(
             self.user["id"], "vacation", "2026-08-17", "2026-08-21"
@@ -186,6 +213,17 @@ class ServiceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unbekannte Abwesenheitsart"):
             self.service.request_absence(
                 self.user["id"], "sick_leave", "2026-08-17", "2026-08-18"
+            )
+        self.assertEqual(self.service.list_absences(self.user["id"]), [])
+
+    def test_inactive_user_cannot_request_absence(self):
+        with self.db.connect() as connection:
+            connection.execute(
+                "UPDATE users SET active=0 WHERE id=?", (self.user["id"],)
+            )
+        with self.assertRaisesRegex(PermissionError, "nicht aktiv"):
+            self.service.request_absence(
+                self.user["id"], "vacation", "2026-08-17", "2026-08-21"
             )
         self.assertEqual(self.service.list_absences(self.user["id"]), [])
 
@@ -230,6 +268,23 @@ class ServiceTests(unittest.TestCase):
         correction = self.service.list_corrections(self.user["id"])[0]
         with self.assertRaisesRegex(ValueError, "Ungültiger Status"):
             self.service.review_correction(correction["id"], admin["id"], "archived")
+
+    def test_employee_cannot_review_correction(self):
+        self.service.request_correction(
+            self.user["id"], "2026-08-13", "08:00", "16:30", 30, "Test"
+        )
+        correction = self.service.list_corrections(self.user["id"])[0]
+        with self.assertRaisesRegex(PermissionError, "Administratorkonto"):
+            self.service.review_correction(
+                correction["id"], self.user["id"], "approved"
+            )
+        self.assertEqual(
+            self.service.list_corrections(self.user["id"])[0]["status"], "pending"
+        )
+        events = self.service.events_for_day(
+            self.user["id"], datetime.fromisoformat("2026-08-13").date()
+        )
+        self.assertEqual(events, [])
 
     def test_admin_reviews_are_written_to_audit_log(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")
@@ -279,6 +334,17 @@ class ServiceTests(unittest.TestCase):
             self.service.request_correction(
                 self.user["id"], "2026-08-13", "16:30", "08:00", 30, "Zeiten vertauscht"
             )
+
+    def test_inactive_user_cannot_request_correction(self):
+        with self.db.connect() as connection:
+            connection.execute(
+                "UPDATE users SET active=0 WHERE id=?", (self.user["id"],)
+            )
+        with self.assertRaisesRegex(PermissionError, "nicht aktiv"):
+            self.service.request_correction(
+                self.user["id"], "2026-08-13", "08:00", "16:30", 30, "Test"
+            )
+        self.assertEqual(self.service.list_corrections(self.user["id"]), [])
 
     def test_correction_rejects_invalid_break_duration(self):
         with self.assertRaisesRegex(ValueError, "ganze Minutenzahl"):

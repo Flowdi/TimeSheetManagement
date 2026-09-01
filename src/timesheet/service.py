@@ -103,6 +103,19 @@ class TimeSheetService:
     def has_users(self) -> bool:
         return bool(self.db.scalar("SELECT COUNT(*) FROM users"))
 
+    def _require_admin(self, user_id: int):
+        role = self.db.scalar(
+            "SELECT role FROM users WHERE id=? AND active=1", (user_id,)
+        )
+        if role != "admin":
+            raise PermissionError("Diese Aktion erfordert ein aktives Administratorkonto.")
+
+    def _require_active_user(self, user_id: int):
+        if not self.db.scalar(
+            "SELECT COUNT(*) FROM users WHERE id=? AND active=1", (user_id,)
+        ):
+            raise PermissionError("Das Benutzerkonto ist nicht aktiv.")
+
     def create_user(
         self,
         username: str,
@@ -216,6 +229,7 @@ class TimeSheetService:
         ]
 
     def record_event(self, user_id: int, event_type: str, occurred_at: datetime | None = None):
+        self._require_active_user(user_id)
         occurred_at = occurred_at or datetime.now().astimezone()
         day = occurred_at.date().isoformat()
         events = self.events_for_day(user_id, occurred_at.date())
@@ -311,6 +325,7 @@ class TimeSheetService:
         return (events[-1]["event_type"] if events else None), summarize_events(events)
 
     def request_absence(self, user_id, absence_type, start_date, end_date, reason=""):
+        self._require_active_user(user_id)
         if absence_type not in ABSENCE_LABELS:
             raise ValueError("Unbekannte Abwesenheitsart.")
         start, end = date.fromisoformat(start_date), date.fromisoformat(end_date)
@@ -356,6 +371,7 @@ class TimeSheetService:
         )
 
     def review_absence(self, request_id, admin_id, status):
+        self._require_admin(admin_id)
         if status not in {"approved", "rejected"}:
             raise ValueError("Ungültiger Status")
         with self.db.connect() as con:
@@ -371,6 +387,7 @@ class TimeSheetService:
             )
 
     def request_correction(self, user_id, work_date, start, end, break_minutes, reason):
+        self._require_active_user(user_id)
         work_day = date.fromisoformat(work_date)
         start_time = time.fromisoformat(start)
         end_time = time.fromisoformat(end)
@@ -434,6 +451,7 @@ class TimeSheetService:
         )
 
     def review_correction(self, request_id, admin_id, status):
+        self._require_admin(admin_id)
         if status not in {"approved", "rejected"}:
             raise ValueError("Ungültiger Status")
         rows = self.db.rows("SELECT * FROM correction_requests WHERE id=? AND status='pending'", (request_id,))
