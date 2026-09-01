@@ -192,6 +192,17 @@ class ServiceTests(unittest.TestCase):
             )
         self.assertEqual(self.service.list_absences(self.user["id"]), [])
 
+    def test_inactive_user_cannot_request_absence(self):
+        with self.db.connect() as connection:
+            connection.execute(
+                "UPDATE users SET active=0 WHERE id=?", (self.user["id"],)
+            )
+        with self.assertRaisesRegex(PermissionError, "nicht aktiv"):
+            self.service.request_absence(
+                self.user["id"], "vacation", "2026-08-17", "2026-08-21"
+            )
+        self.assertEqual(self.service.list_absences(self.user["id"]), [])
+
     def test_rejected_absence_period_can_be_requested_again(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")
         admin = self.service.authenticate("admin", "Sicher123!")
