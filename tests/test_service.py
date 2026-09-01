@@ -48,6 +48,30 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("berta", entry["details"])
         self.assertIn("employee", entry["details"])
 
+    def test_admin_can_deactivate_and_reactivate_user(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.set_user_active(self.user["id"], False, admin["id"])
+        self.assertIsNone(self.service.authenticate("anna", "Sicher123!"))
+        self.service.set_user_active(self.user["id"], True, admin["id"])
+        self.assertIsNotNone(self.service.authenticate("anna", "Sicher123!"))
+        entries = self.db.rows(
+            "SELECT action,details FROM audit_log WHERE actor_user_id=? ORDER BY id",
+            (admin["id"],),
+        )
+        self.assertEqual([row["action"] for row in entries], ["user_status_changed"] * 2)
+        self.assertIn("deaktiviert", entries[0]["details"])
+        self.assertIn("aktiviert", entries[1]["details"])
+
+    def test_user_status_change_requires_admin_and_prevents_self_deactivation(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        with self.assertRaisesRegex(PermissionError, "Administratorkonto"):
+            self.service.set_user_active(admin["id"], False, self.user["id"])
+        with self.assertRaisesRegex(ValueError, "eigene Administratorkonto"):
+            self.service.set_user_active(admin["id"], False, admin["id"])
+        self.assertIsNotNone(self.service.authenticate("admin", "Sicher123!"))
+
     def test_user_can_change_own_password(self):
         self.service.change_password(self.user["id"], "Sicher123!", "NochSicherer456!")
         self.assertIsNone(self.service.authenticate("anna", "Sicher123!"))

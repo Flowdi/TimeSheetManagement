@@ -174,6 +174,32 @@ class TimeSheetService:
     def list_users(self):
         return self.db.rows("SELECT id,username,display_name,role,active FROM users ORDER BY display_name")
 
+    def set_user_active(self, target_user_id: int, active: bool, admin_id: int):
+        self._require_admin(admin_id)
+        if target_user_id == admin_id and not active:
+            raise ValueError("Das eigene Administratorkonto kann nicht deaktiviert werden.")
+        with self.db.connect() as con:
+            result = con.execute(
+                "UPDATE users SET active=? WHERE id=? AND active<>?",
+                (int(active), target_user_id, int(active)),
+            )
+            if result.rowcount != 1:
+                exists = con.execute(
+                    "SELECT 1 FROM users WHERE id=?", (target_user_id,)
+                ).fetchone()
+                if not exists:
+                    raise ValueError("Benutzerkonto nicht gefunden.")
+                raise ValueError("Der gewünschte Kontostatus ist bereits gesetzt.")
+            con.execute(
+                "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
+                (
+                    admin_id,
+                    "user_status_changed",
+                    f"Benutzer #{target_user_id}: {'aktiviert' if active else 'deaktiviert'}",
+                    self.db.now(),
+                ),
+            )
+
     def event_days(self, user_id: int):
         return [
             date.fromisoformat(row["work_date"])
