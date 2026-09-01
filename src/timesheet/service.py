@@ -103,6 +103,13 @@ class TimeSheetService:
     def has_users(self) -> bool:
         return bool(self.db.scalar("SELECT COUNT(*) FROM users"))
 
+    def _require_admin(self, user_id: int):
+        role = self.db.scalar(
+            "SELECT role FROM users WHERE id=? AND active=1", (user_id,)
+        )
+        if role != "admin":
+            raise PermissionError("Diese Aktion erfordert ein aktives Administratorkonto.")
+
     def create_user(self, username: str, display_name: str, password: str, role="employee"):
         username, display_name = username.strip(), display_name.strip()
         if not username or not display_name or len(password) < 8:
@@ -326,6 +333,7 @@ class TimeSheetService:
         )
 
     def review_absence(self, request_id, admin_id, status):
+        self._require_admin(admin_id)
         if status not in {"approved", "rejected"}:
             raise ValueError("Ungültiger Status")
         with self.db.connect() as con:

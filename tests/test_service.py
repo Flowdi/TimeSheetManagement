@@ -145,6 +145,15 @@ class ServiceTests(unittest.TestCase):
             self.service.review_absence(request["id"], admin["id"], "rejected")
         self.assertEqual(self.service.list_absences(self.user["id"])[0]["status"], "approved")
 
+    def test_employee_cannot_review_absence(self):
+        self.service.request_absence(
+            self.user["id"], "vacation", "2026-08-17", "2026-08-21"
+        )
+        request = self.service.list_absences(self.user["id"])[0]
+        with self.assertRaisesRegex(PermissionError, "Administratorkonto"):
+            self.service.review_absence(request["id"], self.user["id"], "approved")
+        self.assertEqual(self.service.list_absences(self.user["id"])[0]["status"], "pending")
+
     def test_absence_rejects_overlapping_active_request(self):
         self.service.request_absence(
             self.user["id"], "vacation", "2026-08-17", "2026-08-21"
