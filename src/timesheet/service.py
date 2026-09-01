@@ -395,6 +395,7 @@ class TimeSheetService:
         )
 
     def review_correction(self, request_id, admin_id, status):
+        self._require_admin(admin_id)
         if status not in {"approved", "rejected"}:
             raise ValueError("Ungültiger Status")
         rows = self.db.rows("SELECT * FROM correction_requests WHERE id=? AND status='pending'", (request_id,))

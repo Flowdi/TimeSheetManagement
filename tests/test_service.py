@@ -216,6 +216,23 @@ class ServiceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Ungültiger Status"):
             self.service.review_correction(correction["id"], admin["id"], "archived")
 
+    def test_employee_cannot_review_correction(self):
+        self.service.request_correction(
+            self.user["id"], "2026-08-13", "08:00", "16:30", 30, "Test"
+        )
+        correction = self.service.list_corrections(self.user["id"])[0]
+        with self.assertRaisesRegex(PermissionError, "Administratorkonto"):
+            self.service.review_correction(
+                correction["id"], self.user["id"], "approved"
+            )
+        self.assertEqual(
+            self.service.list_corrections(self.user["id"])[0]["status"], "pending"
+        )
+        events = self.service.events_for_day(
+            self.user["id"], datetime.fromisoformat("2026-08-13").date()
+        )
+        self.assertEqual(events, [])
+
     def test_admin_reviews_are_written_to_audit_log(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")
         admin = self.service.authenticate("admin", "Sicher123!")
