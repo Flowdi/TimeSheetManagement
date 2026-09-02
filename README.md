@@ -118,6 +118,7 @@ werden.
 - Überstunden- beziehungsweise Minusstundensaldo
 - genehmigte Abwesenheitstage
 - Anzahl der Tage mit Pausen- oder Arbeitszeitwarnungen
+- validierte Monats- und Jahreseingabe mit verständlichen Fehlermeldungen
 
 Administrationsentscheidungen werden zusätzlich in der Service-Schicht geprüft:
 Nur aktive Administratorkonten dürfen Abwesenheiten oder Zeitkorrekturen
