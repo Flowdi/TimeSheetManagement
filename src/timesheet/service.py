@@ -502,14 +502,14 @@ class TimeSheetService:
                 "UPDATE correction_requests SET status=?,reviewed_by=?,reviewed_at=? WHERE id=?",
                 (status, admin_id, self.db.now(), request_id),
             )
-            con.execute(
-                "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
-                (admin_id, "correction_reviewed", f"Antrag #{request_id}: {status}", self.db.now()),
-            )
+            replaced_events = 0
             if status == "approved":
                 start = datetime.fromisoformat(f"{row['work_date']}T{row['proposed_start']}").astimezone()
                 end = datetime.fromisoformat(f"{row['work_date']}T{row['proposed_end']}").astimezone()
-                con.execute("DELETE FROM time_events WHERE user_id=? AND date(occurred_at)=?", (row["user_id"], row["work_date"]))
+                replaced_events = con.execute(
+                    "DELETE FROM time_events WHERE user_id=? AND date(occurred_at)=?",
+                    (row["user_id"], row["work_date"]),
+                ).rowcount
                 events = [("work_start", start)]
                 if row["proposed_break_minutes"]:
                     break_start = start + (end - start - timedelta(minutes=row["proposed_break_minutes"])) / 2
@@ -519,6 +519,16 @@ class TimeSheetService:
                 for kind, stamp in events:
                     con.execute("INSERT INTO time_events(user_id,event_type,occurred_at,source,note) VALUES(?,?,?,?,?)", (row["user_id"],kind,stamp.isoformat(timespec="seconds"),"correction",f"Korrekturantrag #{request_id}"))
                 self._enqueue_sync(con, row["user_id"], date.fromisoformat(row["work_date"]))
+            con.execute(
+                "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
+                (
+                    admin_id,
+                    "correction_reviewed",
+                    f"Antrag #{request_id}: {status}, Arbeitstag {row['work_date']}, "
+                    f"ersetzte Buchungen: {replaced_events}",
+                    self.db.now(),
+                ),
+            )
         return row["user_id"], date.fromisoformat(row["work_date"])
 
     def report(self, year: int, month: int):

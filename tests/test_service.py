@@ -306,6 +306,23 @@ class ServiceTests(unittest.TestCase):
         )
         self.assertEqual(summarize_events(events).break_minutes, 0)
 
+    def test_correction_audit_records_date_and_replaced_event_count(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        timestamp = datetime.fromisoformat("2026-08-13T07:45:00").astimezone()
+        self.service.record_event(self.user["id"], "work_start", timestamp)
+        self.service.request_correction(
+            self.user["id"], "2026-08-13", "08:00", "16:30", 30, "Korrektur"
+        )
+        request = self.service.list_corrections(self.user["id"])[0]
+        self.service.review_correction(request["id"], admin["id"], "approved")
+        entry = self.db.rows(
+            "SELECT details FROM audit_log WHERE actor_user_id=? AND action='correction_reviewed'",
+            (admin["id"],),
+        )[0]
+        self.assertIn("Arbeitstag 2026-08-13", entry["details"])
+        self.assertIn("ersetzte Buchungen: 1", entry["details"])
+
     def test_reviews_reject_unknown_status(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")
         admin = self.service.authenticate("admin", "Sicher123!")
