@@ -201,6 +201,14 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(required_break_minutes(540), 30)
         self.assertEqual(required_break_minutes(541), 45)
 
+    def test_report_rejects_invalid_month_and_year(self):
+        with self.assertRaisesRegex(ValueError, "zwischen 1 und 12"):
+            self.service.report(2026, 13)
+        with self.assertRaisesRegex(ValueError, "Jahr und Monat müssen als Zahlen"):
+            self.service.report("zweitausend", 8)
+        with self.assertRaisesRegex(ValueError, "zwischen 1 und 9998"):
+            self.service.report(9999, 8)
+
     def test_absence_approval(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")
         admin = self.service.authenticate("admin", "Sicher123!")

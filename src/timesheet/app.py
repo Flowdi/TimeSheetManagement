@@ -745,8 +745,13 @@ class TimeSheetApp(tk.Tk):
         for c,l in (("name","Mitarbeiter"),("work","Arbeitszeit"),("overtime","Saldo"),("absence","Abwesenheitstage"),("warnings","Tage mit Verstoß")): self.report_tree.heading(c,text=l)
         self.report_tree.pack(fill="both",expand=True)
         def refresh():
+            try:
+                rows = self.service.report(year.get(), month.get())
+            except (TypeError, ValueError) as exc:
+                messagebox.showerror("Auswertung nicht möglich", str(exc))
+                return
             for item in self.report_tree.get_children(): self.report_tree.delete(item)
-            for row in self.service.report(int(year.get()),int(month.get())):
+            for row in rows:
                 self.report_tree.insert("","end",values=(row["display_name"],format_minutes(row["work_minutes"]),format_minutes(row["overtime_minutes"]),row["absence_days"],row["warning_days"]))
         ttk.Button(controls,text="Anzeigen",command=refresh).pack(side="left")
         refresh()

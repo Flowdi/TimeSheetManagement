@@ -532,6 +532,14 @@ class TimeSheetService:
         return row["user_id"], date.fromisoformat(row["work_date"])
 
     def report(self, year: int, month: int):
+        try:
+            year, month = int(year), int(month)
+        except (TypeError, ValueError) as error:
+            raise ValueError("Jahr und Monat müssen als Zahlen angegeben werden.") from error
+        if not 1 <= month <= 12:
+            raise ValueError("Der Monat muss zwischen 1 und 12 liegen.")
+        if not 1 <= year <= 9998:
+            raise ValueError("Das Jahr muss zwischen 1 und 9998 liegen.")
         prefix = f"{year:04d}-{month:02d}"
         result = []
         for user in self.list_users():
