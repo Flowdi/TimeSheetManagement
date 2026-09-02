@@ -713,12 +713,20 @@ class TimeSheetApp(tk.Tk):
 
     def review_selected_absence(self,status):
         selection=self.pending_absence_tree.selection()
-        if not selection: return
-        self.service.review_absence(int(selection[0]),self.user["id"],status); self.refresh_admin()
+        if not selection:
+            messagebox.showinfo("Abwesenheit", "Bitte zuerst einen Antrag auswählen.")
+            return
+        try:
+            self.service.review_absence(int(selection[0]), self.user["id"], status)
+            self.refresh_admin()
+        except Exception as exc:
+            messagebox.showerror("Nicht möglich", str(exc))
 
     def review_selected_correction(self,status):
         selection=self.pending_correction_tree.selection()
-        if not selection: return
+        if not selection:
+            messagebox.showinfo("Zeitkorrektur", "Bitte zuerst einen Antrag auswählen.")
+            return
         try:
             employee_id, work_day = self.service.review_correction(int(selection[0]),self.user["id"],status)
             self.refresh_admin()
