@@ -290,6 +290,22 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual([row["event_type"] for row in events], ["work_start", "break_start", "break_end", "work_end"])
         self.assertTrue(all(row["source"] == "correction" for row in events))
 
+    def test_approved_zero_break_correction_has_no_fake_break_events(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.request_correction(
+            self.user["id"], "2026-08-13", "08:00", "12:00", 0, "Halber Tag"
+        )
+        request = self.service.list_corrections(self.user["id"])[0]
+        self.service.review_correction(request["id"], admin["id"], "approved")
+        events = self.service.events_for_day(
+            self.user["id"], datetime.fromisoformat("2026-08-13").date()
+        )
+        self.assertEqual(
+            [row["event_type"] for row in events], ["work_start", "work_end"]
+        )
+        self.assertEqual(summarize_events(events).break_minutes, 0)
+
     def test_reviews_reject_unknown_status(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")
         admin = self.service.authenticate("admin", "Sicher123!")

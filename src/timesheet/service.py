@@ -509,10 +509,14 @@ class TimeSheetService:
             if status == "approved":
                 start = datetime.fromisoformat(f"{row['work_date']}T{row['proposed_start']}").astimezone()
                 end = datetime.fromisoformat(f"{row['work_date']}T{row['proposed_end']}").astimezone()
-                break_start = start + (end - start - timedelta(minutes=row["proposed_break_minutes"])) / 2
-                break_end = break_start + timedelta(minutes=row["proposed_break_minutes"])
                 con.execute("DELETE FROM time_events WHERE user_id=? AND date(occurred_at)=?", (row["user_id"], row["work_date"]))
-                for kind, stamp in (("work_start",start),("break_start",break_start),("break_end",break_end),("work_end",end)):
+                events = [("work_start", start)]
+                if row["proposed_break_minutes"]:
+                    break_start = start + (end - start - timedelta(minutes=row["proposed_break_minutes"])) / 2
+                    break_end = break_start + timedelta(minutes=row["proposed_break_minutes"])
+                    events.extend((("break_start", break_start), ("break_end", break_end)))
+                events.append(("work_end", end))
+                for kind, stamp in events:
                     con.execute("INSERT INTO time_events(user_id,event_type,occurred_at,source,note) VALUES(?,?,?,?,?)", (row["user_id"],kind,stamp.isoformat(timespec="seconds"),"correction",f"Korrekturantrag #{request_id}"))
                 self._enqueue_sync(con, row["user_id"], date.fromisoformat(row["work_date"]))
         return row["user_id"], date.fromisoformat(row["work_date"])
