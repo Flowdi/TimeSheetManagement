@@ -550,26 +550,37 @@ class TimeSheetService:
             for row in rows:
                 grouped.setdefault(row["occurred_at"][:10], []).append(row)
             summaries = [summarize_events(events, datetime.fromisoformat(day + "T23:59:59").astimezone()) for day, events in grouped.items()]
+            absence_days = self._approved_absence_weekdays_by_type(
+                user["id"], year, month
+            )
             result.append({
                 "display_name": user["display_name"],
                 "work_minutes": sum(s.work_minutes for s in summaries),
                 "overtime_minutes": sum(s.overtime_minutes for s in summaries),
                 "warning_days": sum(bool(s.warnings) for s in summaries),
-                "absence_days": self._approved_absence_weekdays(user["id"], year, month),
+                "absence_days": sum(absence_days.values()),
+                "vacation_days": absence_days["vacation"],
+                "holiday_days": absence_days["holiday"],
+                "overtime_reduction_days": absence_days["overtime_reduction"],
             })
         return result
 
     def _approved_absence_weekdays(self, user_id, year, month):
+        return sum(
+            self._approved_absence_weekdays_by_type(user_id, year, month).values()
+        )
+
+    def _approved_absence_weekdays_by_type(self, user_id, year, month):
         first = date(year, month, 1)
         next_month = date(year + (month == 12), 1 if month == 12 else month + 1, 1)
-        days = set()
-        for row in self.db.rows("SELECT start_date,end_date FROM absence_requests WHERE user_id=? AND status='approved'", (user_id,)):
+        days = {absence_type: set() for absence_type in ABSENCE_LABELS}
+        for row in self.db.rows("SELECT absence_type,start_date,end_date FROM absence_requests WHERE user_id=? AND status='approved'", (user_id,)):
             current, end = max(date.fromisoformat(row["start_date"]), first), min(date.fromisoformat(row["end_date"]), next_month - timedelta(days=1))
             while current <= end:
                 if current.weekday() < 5:
-                    days.add(current)
+                    days[row["absence_type"]].add(current)
                 current += timedelta(days=1)
-        return len(days)
+        return {absence_type: len(dates) for absence_type, dates in days.items()}
 
 
 def format_minutes(minutes: int) -> str:

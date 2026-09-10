@@ -220,6 +220,32 @@ class ServiceTests(unittest.TestCase):
             row for row in self.service.report(2026, 8) if row["display_name"] == "Anna"
         )
         self.assertEqual(anna_report["absence_days"], 5)
+        self.assertEqual(anna_report["vacation_days"], 5)
+        self.assertEqual(anna_report["holiday_days"], 0)
+        self.assertEqual(anna_report["overtime_reduction_days"], 0)
+
+    def test_report_breaks_absence_days_down_by_type(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        for absence_type, day in (
+            ("vacation", "2026-08-17"),
+            ("holiday", "2026-08-18"),
+            ("overtime_reduction", "2026-08-19"),
+        ):
+            self.service.request_absence(self.user["id"], absence_type, day, day)
+            request = next(
+                row
+                for row in self.service.list_absences(self.user["id"], pending_only=True)
+                if row["absence_type"] == absence_type and row["start_date"] == day
+            )
+            self.service.review_absence(request["id"], admin["id"], "approved")
+        report = next(
+            row for row in self.service.report(2026, 8) if row["display_name"] == "Anna"
+        )
+        self.assertEqual(report["absence_days"], 3)
+        self.assertEqual(report["vacation_days"], 1)
+        self.assertEqual(report["holiday_days"], 1)
+        self.assertEqual(report["overtime_reduction_days"], 1)
 
     def test_absence_cannot_be_reviewed_twice(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")
