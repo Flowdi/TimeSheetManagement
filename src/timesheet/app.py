@@ -741,8 +741,22 @@ class TimeSheetApp(tk.Tk):
         controls=ttk.Frame(tab); controls.pack(fill="x",pady=15)
         month=ttk.Spinbox(controls,from_=1,to=12,width=5); month.set(date.today().month); month.pack(side="left")
         year=ttk.Spinbox(controls,from_=2024,to=2100,width=7); year.set(date.today().year); year.pack(side="left",padx=8)
-        self.report_tree=ttk.Treeview(tab,columns=("name","work","overtime","absence","warnings"),show="headings")
-        for c,l in (("name","Mitarbeiter"),("work","Arbeitszeit"),("overtime","Saldo"),("absence","Abwesenheitstage"),("warnings","Tage mit Verstoß")): self.report_tree.heading(c,text=l)
+        self.report_tree=ttk.Treeview(
+            tab,
+            columns=("name","work","overtime","absence","vacation","holiday","reduction","warnings"),
+            show="headings",
+        )
+        for c,l in (
+            ("name","Mitarbeiter"),
+            ("work","Arbeitszeit"),
+            ("overtime","Saldo"),
+            ("absence","Abwesend"),
+            ("vacation","Urlaub"),
+            ("holiday","Feiertage"),
+            ("reduction","ÜStd.-Abbau"),
+            ("warnings","Tage mit Verstoß"),
+        ):
+            self.report_tree.heading(c,text=l)
         self.report_tree.pack(fill="both",expand=True)
         def refresh():
             try:
@@ -752,7 +766,20 @@ class TimeSheetApp(tk.Tk):
                 return
             for item in self.report_tree.get_children(): self.report_tree.delete(item)
             for row in rows:
-                self.report_tree.insert("","end",values=(row["display_name"],format_minutes(row["work_minutes"]),format_minutes(row["overtime_minutes"]),row["absence_days"],row["warning_days"]))
+                self.report_tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        row["display_name"],
+                        format_minutes(row["work_minutes"]),
+                        format_minutes(row["overtime_minutes"]),
+                        row["absence_days"],
+                        row["vacation_days"],
+                        row["holiday_days"],
+                        row["overtime_reduction_days"],
+                        row["warning_days"],
+                    ),
+                )
         ttk.Button(controls,text="Anzeigen",command=refresh).pack(side="left")
         refresh()
 
