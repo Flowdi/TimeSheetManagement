@@ -11,6 +11,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from .database import Database
 from .google_gateway import GoogleConfig, GoogleGateway, automatic_sync_ready
+from .reporting import monthly_report_csv
 from .settings import SettingsStore
 from .service import ABSENCE_LABELS, EVENT_LABELS, TimeSheetService, format_minutes
 
@@ -780,7 +781,28 @@ class TimeSheetApp(tk.Tk):
                         row["warning_days"],
                     ),
                 )
+            return rows
+
+        def export_csv():
+            rows = refresh()
+            if rows is None:
+                return
+            path = filedialog.asksaveasfilename(
+                title="Monatsauswertung exportieren",
+                defaultextension=".csv",
+                initialfile=f"zeiterfassung-{year.get()}-{str(month.get()).zfill(2)}.csv",
+                filetypes=(("CSV-Dateien", "*.csv"), ("Alle Dateien", "*.*")),
+            )
+            if not path:
+                return
+            try:
+                content = monthly_report_csv(rows, int(year.get()), int(month.get()))
+                Path(path).write_text(content, encoding="utf-8-sig", newline="")
+                messagebox.showinfo("CSV-Export", "Die Monatsauswertung wurde gespeichert.")
+            except (OSError, TypeError, ValueError) as exc:
+                messagebox.showerror("Export nicht möglich", str(exc))
         ttk.Button(controls,text="Anzeigen",command=refresh).pack(side="left")
+        ttk.Button(controls,text="CSV exportieren",command=export_csv).pack(side="left",padx=8)
         refresh()
 
 
