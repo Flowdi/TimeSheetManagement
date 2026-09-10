@@ -119,6 +119,8 @@ werden.
 - genehmigte Abwesenheitstage
 - Anzahl der Tage mit Pausen- oder Arbeitszeitwarnungen
 - validierte Monats- und Jahreseingabe mit verständlichen Fehlermeldungen
+- CSV-Export der Monatsauswertung mit getrennten Spalten für Urlaub, Feiertage
+  und Überstundenabbau
 
 Administrationsentscheidungen werden zusätzlich in der Service-Schicht geprüft:
 Nur aktive Administratorkonten dürfen Abwesenheiten oder Zeitkorrekturen
@@ -404,7 +406,7 @@ Aktuell geprüft werden:
 - [ ] automatische Feiertage für Bayern und das Augsburger Friedensfest
 - [x] Passwortänderung durch angemeldete Benutzer
 - [ ] administratives Zurücksetzen vergessener Passwörter
-- [ ] CSV-Export
+- [x] CSV-Export
 - [ ] Backup und Wiederherstellung
 - [ ] Windows-Installer
 
@@ -436,7 +438,8 @@ Aktuell geprüft werden:
 
 ### Phase 4 – Berichte und Betrieb
 
-- [ ] CSV- und PDF-Berichte
+- [x] CSV-Berichte
+- [ ] PDF-Berichte
 - [ ] Jahresübersichten und Urlaubssaldo
 - [ ] grafische Trends und Warnungsanalyse
 - [ ] revisionsfähige Änderungsverläufe

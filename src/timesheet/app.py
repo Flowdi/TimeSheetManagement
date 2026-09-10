@@ -11,6 +11,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from .database import Database
 from .google_gateway import GoogleConfig, GoogleGateway, automatic_sync_ready
+from .reporting import monthly_report_csv
 from .settings import SettingsStore
 from .service import ABSENCE_LABELS, EVENT_LABELS, TimeSheetService, format_minutes
 
@@ -741,8 +742,22 @@ class TimeSheetApp(tk.Tk):
         controls=ttk.Frame(tab); controls.pack(fill="x",pady=15)
         month=ttk.Spinbox(controls,from_=1,to=12,width=5); month.set(date.today().month); month.pack(side="left")
         year=ttk.Spinbox(controls,from_=2024,to=2100,width=7); year.set(date.today().year); year.pack(side="left",padx=8)
-        self.report_tree=ttk.Treeview(tab,columns=("name","work","overtime","absence","warnings"),show="headings")
-        for c,l in (("name","Mitarbeiter"),("work","Arbeitszeit"),("overtime","Saldo"),("absence","Abwesenheitstage"),("warnings","Tage mit Verstoß")): self.report_tree.heading(c,text=l)
+        self.report_tree=ttk.Treeview(
+            tab,
+            columns=("name","work","overtime","absence","vacation","holiday","reduction","warnings"),
+            show="headings",
+        )
+        for c,l in (
+            ("name","Mitarbeiter"),
+            ("work","Arbeitszeit"),
+            ("overtime","Saldo"),
+            ("absence","Abwesend"),
+            ("vacation","Urlaub"),
+            ("holiday","Feiertage"),
+            ("reduction","ÜStd.-Abbau"),
+            ("warnings","Tage mit Verstoß"),
+        ):
+            self.report_tree.heading(c,text=l)
         self.report_tree.pack(fill="both",expand=True)
         def refresh():
             try:
@@ -752,8 +767,42 @@ class TimeSheetApp(tk.Tk):
                 return
             for item in self.report_tree.get_children(): self.report_tree.delete(item)
             for row in rows:
-                self.report_tree.insert("","end",values=(row["display_name"],format_minutes(row["work_minutes"]),format_minutes(row["overtime_minutes"]),row["absence_days"],row["warning_days"]))
+                self.report_tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        row["display_name"],
+                        format_minutes(row["work_minutes"]),
+                        format_minutes(row["overtime_minutes"]),
+                        row["absence_days"],
+                        row["vacation_days"],
+                        row["holiday_days"],
+                        row["overtime_reduction_days"],
+                        row["warning_days"],
+                    ),
+                )
+            return rows
+
+        def export_csv():
+            rows = refresh()
+            if rows is None:
+                return
+            path = filedialog.asksaveasfilename(
+                title="Monatsauswertung exportieren",
+                defaultextension=".csv",
+                initialfile=f"zeiterfassung-{year.get()}-{str(month.get()).zfill(2)}.csv",
+                filetypes=(("CSV-Dateien", "*.csv"), ("Alle Dateien", "*.*")),
+            )
+            if not path:
+                return
+            try:
+                content = monthly_report_csv(rows, int(year.get()), int(month.get()))
+                Path(path).write_text(content, encoding="utf-8-sig", newline="")
+                messagebox.showinfo("CSV-Export", "Die Monatsauswertung wurde gespeichert.")
+            except (OSError, TypeError, ValueError) as exc:
+                messagebox.showerror("Export nicht möglich", str(exc))
         ttk.Button(controls,text="Anzeigen",command=refresh).pack(side="left")
+        ttk.Button(controls,text="CSV exportieren",command=export_csv).pack(side="left",padx=8)
         refresh()
 
 
