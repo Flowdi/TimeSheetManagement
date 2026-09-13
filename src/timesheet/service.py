@@ -36,12 +36,33 @@ class DaySummary:
     warnings: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class RestViolation:
+    work_date: date
+    rest_minutes: int
+
+
 def required_break_minutes(work_minutes: int) -> int:
     if work_minutes > 9 * 60:
         return 45
     if work_minutes > 6 * 60:
         return 30
     return 0
+
+
+def rest_period_violations(events, minimum_minutes: int = 11 * 60):
+    previous_work_end = None
+    violations = []
+    for event in events:
+        occurred = datetime.fromisoformat(event["occurred_at"])
+        if event["event_type"] == "work_end":
+            previous_work_end = occurred
+        elif event["event_type"] == "work_start" and previous_work_end:
+            rest_minutes = int((occurred - previous_work_end).total_seconds() // 60)
+            if 0 <= rest_minutes < minimum_minutes:
+                violations.append(RestViolation(occurred.date(), rest_minutes))
+            previous_work_end = None
+    return tuple(violations)
 
 
 def summarize_events(events, now: datetime | None = None) -> DaySummary:
