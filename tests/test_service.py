@@ -271,6 +271,21 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(report["holiday_days"], 1)
         self.assertEqual(report["overtime_reduction_days"], 1)
 
+    def test_report_counts_rest_violation_from_previous_month(self):
+        for kind, stamp in (
+            ("work_start", "2026-07-31T14:00:00"),
+            ("work_end", "2026-07-31T22:00:00"),
+            ("work_start", "2026-08-01T08:00:00"),
+            ("work_end", "2026-08-01T12:00:00"),
+        ):
+            self.service.record_event(
+                self.user["id"], kind, datetime.fromisoformat(stamp).astimezone()
+            )
+        report = next(
+            row for row in self.service.report(2026, 8) if row["display_name"] == "Anna"
+        )
+        self.assertEqual(report["rest_violation_days"], 1)
+
     def test_absence_cannot_be_reviewed_twice(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")
         admin = self.service.authenticate("admin", "Sicher123!")
