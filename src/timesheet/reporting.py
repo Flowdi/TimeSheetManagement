@@ -15,6 +15,7 @@ REPORT_HEADERS = (
     "Urlaubstage",
     "Feiertage",
     "Überstundenabbau",
+    "Ruhezeitverstöße",
     "Tage mit Verstoß",
 )
 
@@ -35,6 +36,7 @@ def monthly_report_csv(rows, year: int, month: int) -> str:
                 row["vacation_days"],
                 row["holiday_days"],
                 row["overtime_reduction_days"],
+                row["rest_violation_days"],
                 row["warning_days"],
             )
         )
