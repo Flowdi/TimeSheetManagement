@@ -66,6 +66,13 @@ festgelegten betrieblichen Rahmenbedingungen:
 - bei mehr als neun Stunden mindestens 45 Minuten Pause
 - Warnung bei einem ununterbrochenen Arbeitsblock von mehr als sechs Stunden
 - Warnung bei mehr als zehn Stunden täglicher Arbeitszeit
+- Warnung bei weniger als elf Stunden Ruhezeit zwischen Arbeitsende und dem
+  nächsten Arbeitsbeginn
+
+Die Ruhezeitprüfung orientiert sich an
+[§ 5 Abs. 1 ArbZG](https://www.gesetze-im-internet.de/arbzg/__5.html). Sie zählt
+den Verstoß beim Tag des erneuten Arbeitsbeginns und berücksichtigt deshalb für
+Monatsberichte auch das letzte Arbeitsende des Vormonats.
 
 Regelverstöße werden absichtlich **nicht automatisch korrigiert oder gelöscht**.
 Das System kennzeichnet sie, bewahrt aber die tatsächlich erfassten Zeiten. So
@@ -431,7 +438,7 @@ Aktuell geprüft werden:
 - [ ] Krankheit und weitere Abwesenheitstypen
 - [ ] halbe Urlaubstage
 - [ ] Pausenerinnerungen
-- [ ] Ruhezeitprüfung zwischen Arbeitstagen
+- [x] Ruhezeitprüfung zwischen Arbeitstagen
 - [ ] Ausgleichszeitraum für längere Arbeitstage
 - [ ] Überstundenkonten mit Freigabegrenzen
 - [ ] Monatsabschluss und Sperrung abgeschlossener Perioden
@@ -477,6 +484,8 @@ Nutzen, Datenschutz und Wartungsaufwand priorisiert werden.
 - Zeitkorrekturen nehmen für die Pause eine mittige Position im Arbeitstag an.
 - Monatsauswertungen berücksichtigen derzeit erfasste Arbeitstage und genehmigte
   Abwesenheiten, aber noch keinen vollständigen Sollstundenkalender.
+- Branchenspezifische Ausnahmen oder tarifliche Abweichungen von der allgemeinen
+  Ruhezeit werden nicht automatisch bewertet.
 - Es gibt noch keinen Windows-Installer.
 - SQLite-Dateien werden noch nicht automatisch gesichert.
 
