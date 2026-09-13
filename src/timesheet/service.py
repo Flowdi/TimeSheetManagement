@@ -36,12 +36,33 @@ class DaySummary:
     warnings: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class RestViolation:
+    work_date: date
+    rest_minutes: int
+
+
 def required_break_minutes(work_minutes: int) -> int:
     if work_minutes > 9 * 60:
         return 45
     if work_minutes > 6 * 60:
         return 30
     return 0
+
+
+def rest_period_violations(events, minimum_minutes: int = 11 * 60):
+    previous_work_end = None
+    violations = []
+    for event in events:
+        occurred = datetime.fromisoformat(event["occurred_at"])
+        if event["event_type"] == "work_end":
+            previous_work_end = occurred
+        elif event["event_type"] == "work_start" and previous_work_end:
+            rest_minutes = int((occurred - previous_work_end).total_seconds() // 60)
+            if 0 <= rest_minutes < minimum_minutes:
+                violations.append(RestViolation(occurred.date(), rest_minutes))
+            previous_work_end = None
+    return tuple(violations)
 
 
 def summarize_events(events, now: datetime | None = None) -> DaySummary:
@@ -541,6 +562,8 @@ class TimeSheetService:
         if not 1 <= year <= 9998:
             raise ValueError("Das Jahr muss zwischen 1 und 9998 liegen.")
         prefix = f"{year:04d}-{month:02d}"
+        first = date(year, month, 1)
+        next_month = date(year + (month == 12), 1 if month == 12 else month + 1, 1)
         result = []
         for user in self.list_users():
             if not user["active"]:
@@ -553,11 +576,26 @@ class TimeSheetService:
             absence_days = self._approved_absence_weekdays_by_type(
                 user["id"], year, month
             )
+            rest_events = self.db.rows(
+                """SELECT event_type,occurred_at FROM time_events
+                   WHERE user_id=? AND occurred_at>=? AND occurred_at<?
+                   ORDER BY occurred_at,id""",
+                (
+                    user["id"],
+                    datetime.combine(first - timedelta(days=1), time.min).astimezone().isoformat(),
+                    datetime.combine(next_month, time.min).astimezone().isoformat(),
+                ),
+            )
+            rest_violations = sum(
+                first <= violation.work_date < next_month
+                for violation in rest_period_violations(rest_events)
+            )
             result.append({
                 "display_name": user["display_name"],
                 "work_minutes": sum(s.work_minutes for s in summaries),
                 "overtime_minutes": sum(s.overtime_minutes for s in summaries),
                 "warning_days": sum(bool(s.warnings) for s in summaries),
+                "rest_violation_days": rest_violations,
                 "absence_days": sum(absence_days.values()),
                 "vacation_days": absence_days["vacation"],
                 "holiday_days": absence_days["holiday"],

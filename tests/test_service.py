@@ -6,7 +6,12 @@ from datetime import datetime
 from pathlib import Path
 
 from timesheet.database import Database
-from timesheet.service import TimeSheetService, required_break_minutes, summarize_events
+from timesheet.service import (
+    TimeSheetService,
+    required_break_minutes,
+    rest_period_violations,
+    summarize_events,
+)
 
 
 class ServiceTests(unittest.TestCase):
@@ -201,6 +206,25 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(required_break_minutes(540), 30)
         self.assertEqual(required_break_minutes(541), 45)
 
+    def test_rest_period_violations_detect_less_than_eleven_hours(self):
+        events = [
+            {"event_type": "work_end", "occurred_at": "2026-08-13T22:00:00+02:00"},
+            {"event_type": "work_start", "occurred_at": "2026-08-14T08:00:00+02:00"},
+            {"event_type": "work_end", "occurred_at": "2026-08-14T16:30:00+02:00"},
+            {"event_type": "work_start", "occurred_at": "2026-08-15T08:00:00+02:00"},
+        ]
+        violations = rest_period_violations(events)
+        self.assertEqual(len(violations), 1)
+        self.assertEqual(violations[0].work_date.isoformat(), "2026-08-14")
+        self.assertEqual(violations[0].rest_minutes, 10 * 60)
+
+    def test_exactly_eleven_hours_rest_is_allowed(self):
+        events = [
+            {"event_type": "work_end", "occurred_at": "2026-08-13T21:00:00+02:00"},
+            {"event_type": "work_start", "occurred_at": "2026-08-14T08:00:00+02:00"},
+        ]
+        self.assertEqual(rest_period_violations(events), ())
+
     def test_report_rejects_invalid_month_and_year(self):
         with self.assertRaisesRegex(ValueError, "zwischen 1 und 12"):
             self.service.report(2026, 13)
@@ -246,6 +270,21 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(report["vacation_days"], 1)
         self.assertEqual(report["holiday_days"], 1)
         self.assertEqual(report["overtime_reduction_days"], 1)
+
+    def test_report_counts_rest_violation_from_previous_month(self):
+        for kind, stamp in (
+            ("work_start", "2026-07-31T14:00:00"),
+            ("work_end", "2026-07-31T22:00:00"),
+            ("work_start", "2026-08-01T08:00:00"),
+            ("work_end", "2026-08-01T12:00:00"),
+        ):
+            self.service.record_event(
+                self.user["id"], kind, datetime.fromisoformat(stamp).astimezone()
+            )
+        report = next(
+            row for row in self.service.report(2026, 8) if row["display_name"] == "Anna"
+        )
+        self.assertEqual(report["rest_violation_days"], 1)
 
     def test_absence_cannot_be_reviewed_twice(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")

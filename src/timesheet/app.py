@@ -744,7 +744,7 @@ class TimeSheetApp(tk.Tk):
         year=ttk.Spinbox(controls,from_=2024,to=2100,width=7); year.set(date.today().year); year.pack(side="left",padx=8)
         self.report_tree=ttk.Treeview(
             tab,
-            columns=("name","work","overtime","absence","vacation","holiday","reduction","warnings"),
+            columns=("name","work","overtime","absence","vacation","holiday","reduction","rest","warnings"),
             show="headings",
         )
         for c,l in (
@@ -755,6 +755,7 @@ class TimeSheetApp(tk.Tk):
             ("vacation","Urlaub"),
             ("holiday","Feiertage"),
             ("reduction","ÜStd.-Abbau"),
+            ("rest","Ruhezeitverstöße"),
             ("warnings","Tage mit Verstoß"),
         ):
             self.report_tree.heading(c,text=l)
@@ -778,6 +779,7 @@ class TimeSheetApp(tk.Tk):
                         row["vacation_days"],
                         row["holiday_days"],
                         row["overtime_reduction_days"],
+                        row["rest_violation_days"],
                         row["warning_days"],
                     ),
                 )
