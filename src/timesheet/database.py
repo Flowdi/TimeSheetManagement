@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -106,6 +106,23 @@ class Database:
     @staticmethod
     def now() -> str:
         return datetime.now().astimezone().isoformat(timespec="seconds")
+
+    def backup(self, destination: Path | str) -> Path:
+        target = Path(destination).resolve()
+        if target == self.path.resolve():
+            raise ValueError("Die Sicherung darf nicht die aktive Datenbank ersetzen.")
+        if target.exists():
+            raise ValueError("Die Sicherungsdatei existiert bereits. Bitte einen neuen Namen wählen.")
+        # Exclusive creation also prevents a file created concurrently from being overwritten.
+        with target.open("xb"):
+            pass
+        with self.connect() as source:
+            with closing(sqlite3.connect(target)) as backup_connection:
+                source.backup(backup_connection)
+                result = backup_connection.execute("PRAGMA quick_check").fetchone()[0]
+                if result != "ok":
+                    raise ValueError("Die Datenbanksicherung hat die Integritätsprüfung nicht bestanden.")
+        return target
 
     def scalar(self, sql: str, parameters=()):
         with self.connect() as connection:
