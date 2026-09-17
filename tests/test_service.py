@@ -29,6 +29,18 @@ class ServiceTests(unittest.TestCase):
         self.assertIsNotNone(self.user)
         self.assertIsNone(self.service.authenticate("anna", "falsch"))
 
+    def test_database_backup_requires_admin_and_is_audited(self):
+        target = Path(self.temp.name) / "backup.db"
+        with self.assertRaises(PermissionError):
+            self.service.backup_database(target, self.user["id"])
+        self.assertFalse(target.exists())
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.backup_database(target, admin["id"])
+        self.assertTrue(target.exists())
+        entries = self.service.list_audit_entries(admin["id"])
+        self.assertEqual(entries[0]["action"], "database_backup")
+
     def test_user_creation_rejects_duplicate_username(self):
         with self.assertRaisesRegex(ValueError, "bereits vergeben"):
             self.service.create_user("ANNA", "Andere Anna", "Sicher456!", "employee")

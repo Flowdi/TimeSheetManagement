@@ -124,6 +124,16 @@ class TimeSheetService:
     def has_users(self) -> bool:
         return bool(self.db.scalar("SELECT COUNT(*) FROM users"))
 
+    def backup_database(self, destination, admin_id: int):
+        self._require_admin(admin_id)
+        target = self.db.backup(destination)
+        with self.db.connect() as con:
+            con.execute(
+                "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
+                (admin_id, "database_backup", f"Sicherung erstellt: {target.name}", self.db.now()),
+            )
+        return target
+
     def _require_admin(self, user_id: int):
         role = self.db.scalar(
             "SELECT role FROM users WHERE id=? AND active=1", (user_id,)
