@@ -113,6 +113,20 @@ werden.
 
 ### Administration und Auswertung
 
+Administratoren können über **Datenbank sichern** eine manuelle SQLite-Sicherung
+erstellen. Die Sicherung verwendet die SQLite-Backup-Schnittstelle und wird mit
+einer Integritätsprüfung kontrolliert. Bestehende Dateien und die aktive
+Datenbank werden nicht überschrieben; bitte immer einen neuen Dateinamen wählen.
+
+Gesichert werden lokale Benutzerkonten, Passwort-Hashes, Zeitereignisse, Anträge,
+Audit-Verlauf und Sync-Warteschlange. Der Audit-Eintrag für die erfolgreiche
+Sicherung entsteht erst danach in der laufenden Datenbank. Programmeinstellungen
+und Google-Zugangsdaten sind nicht enthalten und müssen getrennt gesichert werden.
+Die Sicherung ist nicht verschlüsselt und enthält personenbezogene Daten:
+Sie sollte ausschließlich an einem geschützten Speicherort abgelegt werden.
+Eine automatische Wiederherstellung oder automatische Sicherungsplanung ist
+noch nicht implementiert.
+
 - Mitarbeiterkonten anlegen
 - offene Abwesenheitsanträge bearbeiten
 - offene Korrekturanträge bearbeiten
