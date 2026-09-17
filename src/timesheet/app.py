@@ -525,6 +525,9 @@ class TimeSheetApp(tk.Tk):
     def build_admin_tab(self):
         tab = self.admin_tab
         ttk.Label(tab, text="Administration", style="Title.TLabel").pack(anchor="w")
+        ttk.Button(
+            tab, text="Datenbank sichern", command=self.backup_database
+        ).pack(anchor="w", pady=(8, 0))
         user_box = ttk.LabelFrame(tab, text="Mitarbeiter anlegen", padding=12)
         user_box.pack(fill="x", pady=12)
         fields = {}
@@ -662,6 +665,22 @@ class TimeSheetApp(tk.Tk):
             self.audit_tree.heading(column, text=label)
         self.audit_tree.pack(fill="both", expand=True)
         self.refresh_admin()
+
+    def backup_database(self):
+        destination = filedialog.asksaveasfilename(
+            title="Datenbanksicherung speichern",
+            defaultextension=".db",
+            initialfile=f"timesheet-backup-{datetime.now():%Y%m%d-%H%M%S}.db",
+            filetypes=(("SQLite-Datenbank", "*.db"), ("Alle Dateien", "*.*")),
+        )
+        if not destination:
+            return
+        try:
+            target = self.service.backup_database(destination, self.user["id"])
+            self.refresh_admin()
+            messagebox.showinfo("Datenbanksicherung", f"Sicherung erfolgreich erstellt:\n{target}")
+        except Exception as exc:
+            messagebox.showerror("Sicherung nicht möglich", str(exc))
 
     def refresh_admin(self):
         for item in self.user_tree.get_children(): self.user_tree.delete(item)
