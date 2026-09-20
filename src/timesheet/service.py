@@ -392,6 +392,17 @@ class TimeSheetService:
                ORDER BY q.updated_at DESC,q.id DESC"""
         )
 
+    def retry_failed_sync_job(self, user_id: int, day: date, admin_id: int):
+        self._require_admin(admin_id)
+        with self.db.connect() as con:
+            result = con.execute(
+                """UPDATE sync_queue SET status='pending',next_attempt_at=?,updated_at=?
+                   WHERE user_id=? AND work_date=? AND status='failed'""",
+                (self.db.now(), self.db.now(), user_id, day.isoformat()),
+            )
+            if result.rowcount != 1:
+                raise ValueError("Dieser Sync-Fehler ist nicht mehr offen.")
+
     def events_for_day(self, user_id: int, day: date):
         start = datetime.combine(day, time.min).astimezone().isoformat()
         end = datetime.combine(day + timedelta(days=1), time.min).astimezone().isoformat()

@@ -179,6 +179,20 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(jobs[0]["attempts"], 1)
         self.assertIn("Verbindung", jobs[0]["last_error"])
 
+    def test_admin_can_requeue_failed_sync_job(self):
+        day = datetime.fromisoformat("2026-08-14").date()
+        self.service.enqueue_sync(self.user["id"], day)
+        self.service.mark_sync_failure(self.user["id"], day, "Netzwerkfehler")
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        with self.assertRaises(PermissionError):
+            self.service.retry_failed_sync_job(self.user["id"], day, self.user["id"])
+        self.service.retry_failed_sync_job(self.user["id"], day, admin["id"])
+        self.assertEqual(self.service.sync_stats()["pending"], 1)
+        self.assertEqual(self.service.sync_stats()["failed"], 0)
+        with self.assertRaisesRegex(ValueError, "nicht mehr offen"):
+            self.service.retry_failed_sync_job(self.user["id"], day, admin["id"])
+
     def test_new_booking_resets_failed_sync_for_same_day(self):
         day = datetime.fromisoformat("2026-08-14").date()
         self.service.enqueue_sync(self.user["id"], day)
