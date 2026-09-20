@@ -165,6 +165,20 @@ class ServiceTests(unittest.TestCase):
         self.service.mark_sync_success(self.user["id"], day)
         self.assertEqual(self.service.sync_stats(), {"pending": 0, "failed": 0, "synced": 1})
 
+    def test_failed_sync_diagnostics_require_admin(self):
+        day = datetime.fromisoformat("2026-08-14").date()
+        self.service.enqueue_sync(self.user["id"], day)
+        self.service.mark_sync_failure(self.user["id"], day, "Verbindung fehlgeschlagen")
+        with self.assertRaises(PermissionError):
+            self.service.failed_sync_jobs(self.user["id"])
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        jobs = self.service.failed_sync_jobs(admin["id"])
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0]["display_name"], "Anna")
+        self.assertEqual(jobs[0]["attempts"], 1)
+        self.assertIn("Verbindung", jobs[0]["last_error"])
+
     def test_new_booking_resets_failed_sync_for_same_day(self):
         day = datetime.fromisoformat("2026-08-14").date()
         self.service.enqueue_sync(self.user["id"], day)

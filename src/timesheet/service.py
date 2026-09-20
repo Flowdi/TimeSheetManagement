@@ -382,6 +382,16 @@ class TimeSheetService:
         result.update({row["status"]: row["count"] for row in rows})
         return result
 
+    def failed_sync_jobs(self, admin_id: int):
+        self._require_admin(admin_id)
+        return self.db.rows(
+            """SELECT q.user_id,q.work_date,q.attempts,q.last_error,
+                      q.next_attempt_at,u.display_name
+               FROM sync_queue q JOIN users u ON u.id=q.user_id
+               WHERE q.status='failed'
+               ORDER BY q.updated_at DESC,q.id DESC"""
+        )
+
     def events_for_day(self, user_id: int, day: date):
         start = datetime.combine(day, time.min).astimezone().isoformat()
         end = datetime.combine(day + timedelta(days=1), time.min).astimezone().isoformat()
