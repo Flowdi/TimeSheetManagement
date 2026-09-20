@@ -247,6 +247,8 @@ class TimeSheetApp(tk.Tk):
                 text=text,
                 style="Warning.TLabel" if stats["failed"] else "Muted.TLabel",
             )
+        if hasattr(self, "failed_sync_tree") and self.failed_sync_tree.winfo_exists() and self.user and self.user["role"] == "admin":
+            self.refresh_failed_syncs()
 
     def google_status(self, text: str, error: bool):
         for attribute in ("time_sync_label", "sync_status_label"):
@@ -612,6 +614,17 @@ class TimeSheetApp(tk.Tk):
         self.sync_status_label.grid(row=3, column=0, columnspan=3, sticky="w", pady=(8, 0))
         self.queue_status_label = ttk.Label(google_box, style="Muted.TLabel")
         self.queue_status_label.grid(row=4, column=0, columnspan=3, sticky="w", pady=(4, 0))
+        failed_frame = ttk.LabelFrame(google_box, text="Fehlgeschlagene Übertragungen", padding=6)
+        failed_frame.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(10, 0))
+        self.failed_sync_tree = ttk.Treeview(
+            failed_frame, columns=("employee", "day", "attempts", "retry", "error"),
+            show="headings", height=4,
+        )
+        for column, label in (("employee", "Mitarbeiter"), ("day", "Datum"),
+                              ("attempts", "Versuche"), ("retry", "Nächster Versuch"),
+                              ("error", "Letzter Fehler")):
+            self.failed_sync_tree.heading(column, text=label)
+        self.failed_sync_tree.pack(fill="x")
         self.refresh_sync_status()
         users_frame = ttk.LabelFrame(tab, text="Mitarbeiterkonten", padding=8)
         users_frame.pack(fill="x", pady=(0, 12))
@@ -681,6 +694,16 @@ class TimeSheetApp(tk.Tk):
             messagebox.showinfo("Datenbanksicherung", f"Sicherung erfolgreich erstellt:\n{target}")
         except Exception as exc:
             messagebox.showerror("Sicherung nicht möglich", str(exc))
+
+    def refresh_failed_syncs(self):
+        for item in self.failed_sync_tree.get_children():
+            self.failed_sync_tree.delete(item)
+        for job in self.service.failed_sync_jobs(self.user["id"]):
+            retry = datetime.fromisoformat(job["next_attempt_at"]).strftime("%d.%m.%Y %H:%M")
+            self.failed_sync_tree.insert("", "end", values=(
+                job["display_name"], job["work_date"], job["attempts"],
+                retry, job["last_error"],
+            ))
 
     def refresh_admin(self):
         for item in self.user_tree.get_children(): self.user_tree.delete(item)
