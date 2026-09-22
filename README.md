@@ -134,6 +134,8 @@ noch nicht implementiert.
 - administrativ angelegte Mitarbeiterkonten mit ausführendem Admin protokollieren
 - Mitarbeiterkonten deaktivieren und später wieder aktivieren
 - Audit-Verlauf mit Zeitpunkt, Akteur, Aktion und Details einsehen
+- fehlgeschlagene Google-Sheets-Übertragungen mit Fehlermeldung und nächstem
+  Versuch einsehen und einzeln erneut anstoßen
 - Monatsauswertung je Mitarbeiter
 - gesamte erfasste Arbeitszeit
 - Überstunden- beziehungsweise Minusstundensaldo
