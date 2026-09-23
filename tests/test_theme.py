@@ -5,6 +5,7 @@ from timesheet.app import (
     NAVIGATION_TAB_WIDTH,
     THEMES,
     TimeSheetApp,
+    audit_action_label,
 )
 
 
@@ -32,6 +33,10 @@ class FakeApp:
 
 
 class ThemeTests(unittest.TestCase):
+    def test_audit_actions_have_readable_labels_and_safe_fallback(self):
+        self.assertEqual(audit_action_label("password_reset"), "Passwort zurückgesetzt")
+        self.assertEqual(audit_action_label("future_action"), "future_action")
+
     def test_both_themes_have_required_colors(self):
         required = {"bg", "surface", "surface_alt", "text", "muted", "accent", "accent_hover", "selected", "danger"}
         for colors in THEMES.values():

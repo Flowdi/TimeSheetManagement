@@ -202,6 +202,24 @@ class TimeSheetService:
                 (user_id, "password_changed", "Lokales Passwort geändert", self.db.now()),
             )
 
+    def reset_user_password(self, target_user_id: int, new_password: str, admin_id: int):
+        self._require_admin(admin_id)
+        if target_user_id == admin_id:
+            raise ValueError("Das eigene Passwort muss im Reiter 'Mein Konto' geändert werden.")
+        if len(new_password) < 8:
+            raise ValueError("Das neue Passwort muss mindestens 8 Zeichen haben.")
+        rows = self.db.rows("SELECT username,password_hash FROM users WHERE id=?", (target_user_id,))
+        if not rows:
+            raise ValueError("Benutzerkonto nicht gefunden.")
+        if verify_password(new_password, rows[0]["password_hash"]):
+            raise ValueError("Das neue Passwort muss sich vom bisherigen unterscheiden.")
+        with self.db.connect() as con:
+            con.execute("UPDATE users SET password_hash=? WHERE id=?", (hash_password(new_password), target_user_id))
+            con.execute(
+                "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
+                (admin_id, "password_reset", f"Passwort für Benutzer #{target_user_id} ({rows[0]['username']}) zurückgesetzt", self.db.now()),
+            )
+
     def list_users(self):
         return self.db.rows("SELECT id,username,display_name,role,active FROM users ORDER BY display_name")
 
