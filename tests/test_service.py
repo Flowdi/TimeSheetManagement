@@ -124,6 +124,23 @@ class ServiceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unterscheiden"):
             self.service.change_password(self.user["id"], "Sicher123!", "Sicher123!")
 
+    def test_admin_can_reset_another_users_password(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.reset_user_password(self.user["id"], "NeuSicher456!", admin["id"])
+        self.assertIsNone(self.service.authenticate("anna", "Sicher123!"))
+        self.assertIsNotNone(self.service.authenticate("anna", "NeuSicher456!"))
+        entries = self.service.list_audit_entries(admin["id"])
+        self.assertEqual(entries[0]["action"], "password_reset")
+
+    def test_password_reset_requires_admin_and_rejects_self_reset(self):
+        with self.assertRaises(PermissionError):
+            self.service.reset_user_password(self.user["id"], "NeuSicher456!", self.user["id"])
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        with self.assertRaisesRegex(ValueError, "Mein Konto"):
+            self.service.reset_user_password(admin["id"], "NeuSicher456!", admin["id"])
+
     def test_event_order_is_enforced(self):
         with self.assertRaises(ValueError):
             self.service.record_event(self.user["id"], "break_start")
