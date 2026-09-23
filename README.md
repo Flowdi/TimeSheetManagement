@@ -39,6 +39,7 @@ dem Betrieb wachsen kann.
 - Anlage weiterer Mitarbeiterkonten durch Administratoren
 - selbstständige Passwortänderung im Reiter `Mein Konto`
 - Prüfung des bisherigen Passworts und Audit-Eintrag bei jeder Änderung
+- administratives Zurücksetzen vergessener Mitarbeiterpasswörter
 - lokale Speicherung; Google-Kennwörter werden nicht verwendet
 
 ### Arbeitszeiterfassung
@@ -149,6 +150,16 @@ Administrationsentscheidungen werden zusätzlich in der Service-Schicht geprüft
 Nur aktive Administratorkonten dürfen Abwesenheiten oder Zeitkorrekturen
 genehmigen und ablehnen. Deaktivierte Konten können keine Arbeitszeiten oder
 neuen Anträge mehr erfassen.
+
+### Vergessenes Passwort zurücksetzen
+
+Ein Administrator wählt unter `Administration` das Mitarbeiterkonto und danach
+`Passwort zurücksetzen`. Das neue Passwort muss zweimal übereinstimmend
+eingegeben werden und mindestens acht Zeichen enthalten. Es ist sofort gültig;
+das alte Passwort funktioniert anschließend nicht mehr. Passwörter werden weder
+im Klartext gespeichert noch in den Audit-Details protokolliert. Das eigene
+Adminpasswort kann auf diesem Weg nicht ersetzt werden und muss weiterhin unter
+`Mein Konto` mit dem bisherigen Passwort geändert werden.
 
 ### Darstellung
 
@@ -428,7 +439,7 @@ Aktuell geprüft werden:
 - [x] Dark und Light Mode
 - [ ] automatische Feiertage für Bayern und das Augsburger Friedensfest
 - [x] Passwortänderung durch angemeldete Benutzer
-- [ ] administratives Zurücksetzen vergessener Passwörter
+- [x] administratives Zurücksetzen vergessener Passwörter
 - [x] CSV-Export
 - [ ] Backup und Wiederherstellung
 - [ ] Windows-Installer
