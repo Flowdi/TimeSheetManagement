@@ -7,7 +7,7 @@ import threading
 import tkinter as tk
 from datetime import date, datetime
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from .database import Database
 from .google_gateway import GoogleConfig, GoogleGateway, automatic_sync_ready
@@ -651,6 +651,10 @@ class TimeSheetApp(tk.Tk):
             text="Ausgewähltes Konto aktivieren / deaktivieren",
             command=self.toggle_selected_user,
         ).pack(anchor="w", pady=(6, 0))
+        ttk.Button(
+            users_frame, text="Passwort zurücksetzen",
+            command=self.reset_selected_user_password,
+        ).pack(anchor="w", pady=(6, 0))
         panes = ttk.Panedwindow(tab, orient="horizontal"); panes.pack(fill="both",expand=True)
         absence_frame=ttk.LabelFrame(panes,text="Offene Abwesenheiten",padding=8); correction_frame=ttk.LabelFrame(panes,text="Offene Korrekturen",padding=8)
         audit_frame = ttk.LabelFrame(panes, text="Audit-Verlauf", padding=8)
@@ -768,6 +772,33 @@ class TimeSheetApp(tk.Tk):
         try:
             self.service.set_user_active(user_id, activate, self.user["id"])
             self.refresh_admin()
+        except Exception as exc:
+            messagebox.showerror("Nicht möglich", str(exc))
+
+    def reset_selected_user_password(self):
+        selection = self.user_tree.selection()
+        if not selection:
+            messagebox.showinfo("Passwort zurücksetzen", "Bitte zuerst ein Konto auswählen.")
+            return
+        user_id = int(selection[0])
+        user = next(row for row in self.service.list_users() if row["id"] == user_id)
+        password = simpledialog.askstring(
+            "Passwort zurücksetzen", f"Neues Passwort für {user['display_name']}:",
+            show="*", parent=self,
+        )
+        if password is None:
+            return
+        confirmation = simpledialog.askstring(
+            "Passwort bestätigen", "Neues Passwort erneut eingeben:",
+            show="*", parent=self,
+        )
+        if confirmation != password:
+            messagebox.showerror("Nicht möglich", "Die Passwörter stimmen nicht überein.")
+            return
+        try:
+            self.service.reset_user_password(user_id, password, self.user["id"])
+            self.refresh_admin()
+            messagebox.showinfo("Passwort zurückgesetzt", "Das neue Passwort ist sofort aktiv.")
         except Exception as exc:
             messagebox.showerror("Nicht möglich", str(exc))
 
