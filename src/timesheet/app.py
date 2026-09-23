@@ -17,6 +17,22 @@ from .service import ABSENCE_LABELS, EVENT_LABELS, TimeSheetService, format_minu
 
 
 STATUS_LABELS = {"pending": "Offen", "approved": "Genehmigt", "rejected": "Abgelehnt"}
+AUDIT_ACTION_LABELS = {
+    "password_changed": "Eigenes Passwort geändert",
+    "password_reset": "Passwort zurückgesetzt",
+    "user_created": "Benutzer angelegt",
+    "user_status_changed": "Kontostatus geändert",
+    "time_event": "Zeitbuchung",
+    "absence_requested": "Abwesenheit beantragt",
+    "absence_reviewed": "Abwesenheit geprüft",
+    "correction_requested": "Zeitkorrektur beantragt",
+    "correction_reviewed": "Zeitkorrektur geprüft",
+    "database_backup": "Datenbank gesichert",
+}
+
+
+def audit_action_label(action: str) -> str:
+    return AUDIT_ACTION_LABELS.get(action, action)
 
 THEMES = {
     "dark": {
@@ -752,7 +768,7 @@ class TimeSheetApp(tk.Tk):
             self.audit_tree.insert(
                 "",
                 "end",
-                values=(stamp, entry["actor_name"], entry["action"], entry["details"]),
+                values=(stamp, entry["actor_name"], audit_action_label(entry["action"]), entry["details"]),
             )
 
     def toggle_selected_user(self):
