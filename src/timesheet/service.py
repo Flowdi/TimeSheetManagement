@@ -249,18 +249,35 @@ class TimeSheetService:
                 ),
             )
 
-    def list_audit_entries(self, admin_id: int, limit: int = 100):
+    def list_audit_entries(self, admin_id: int, limit: int = 100, action="", search=""):
         self._require_admin(admin_id)
         safe_limit = max(1, min(int(limit), 500))
+        conditions, parameters = [], []
+        if action:
+            conditions.append("l.action=?")
+            parameters.append(action)
+        if search.strip():
+            conditions.append("(l.details LIKE ? OR COALESCE(u.display_name,'System') LIKE ?)")
+            pattern = f"%{search.strip()}%"
+            parameters.extend((pattern, pattern))
+        where = " WHERE " + " AND ".join(conditions) if conditions else ""
+        parameters.append(safe_limit)
         return self.db.rows(
-            """SELECT l.id,l.action,l.details,l.created_at,
+            f"""SELECT l.id,l.action,l.details,l.created_at,
                       COALESCE(u.display_name,'System') AS actor_name
                FROM audit_log l
                LEFT JOIN users u ON u.id=l.actor_user_id
+               {where}
                ORDER BY l.id DESC
                LIMIT ?""",
-            (safe_limit,),
+            parameters,
         )
+
+    def list_audit_actions(self, admin_id: int):
+        self._require_admin(admin_id)
+        return [row["action"] for row in self.db.rows(
+            "SELECT DISTINCT action FROM audit_log ORDER BY action"
+        )]
 
     def event_days(self, user_id: int):
         return [

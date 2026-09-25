@@ -135,6 +135,8 @@ noch nicht implementiert.
 - administrativ angelegte Mitarbeiterkonten mit ausführendem Admin protokollieren
 - Mitarbeiterkonten deaktivieren und später wieder aktivieren
 - Audit-Verlauf mit Zeitpunkt, Akteur, Aktion und Details einsehen
+- Audit-Verlauf nach Aktion oder Freitext filtern und die aktuelle Auswahl als
+  CSV-Datei exportieren
 - fehlgeschlagene Google-Sheets-Übertragungen mit Fehlermeldung und nächstem
   Versuch einsehen und einzeln erneut anstoßen
 - Monatsauswertung je Mitarbeiter
