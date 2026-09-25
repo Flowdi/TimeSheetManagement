@@ -4,7 +4,7 @@ import csv
 import io
 import unittest
 
-from timesheet.reporting import REPORT_HEADERS, monthly_report_csv
+from timesheet.reporting import REPORT_HEADERS, audit_entries_csv, monthly_report_csv
 
 
 class ReportingTests(unittest.TestCase):
@@ -37,6 +37,16 @@ class ReportingTests(unittest.TestCase):
         content = monthly_report_csv([], 2026, 8)
         rows = list(csv.reader(io.StringIO(content), delimiter=";"))
         self.assertEqual(rows, [list(REPORT_HEADERS)])
+
+    def test_audit_csv_uses_readable_action_label(self):
+        content = audit_entries_csv([{
+            "created_at": "2026-09-25T10:30:00+02:00", "actor_name": "Admin",
+            "action": "password_reset", "action_label": "Passwort zurückgesetzt",
+            "details": "Passwort für Anna zurückgesetzt",
+        }])
+        rows = list(csv.reader(io.StringIO(content), delimiter=";"))
+        self.assertEqual(rows[0], ["Zeitpunkt", "Akteur", "Aktion", "Details"])
+        self.assertEqual(rows[1][2], "Passwort zurückgesetzt")
 
 
 if __name__ == "__main__":

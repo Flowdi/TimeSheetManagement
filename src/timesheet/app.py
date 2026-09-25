@@ -11,7 +11,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from .database import Database
 from .google_gateway import GoogleConfig, GoogleGateway, automatic_sync_ready
-from .reporting import monthly_report_csv
+from .reporting import audit_entries_csv, monthly_report_csv
 from .settings import SettingsStore
 from .service import ABSENCE_LABELS, EVENT_LABELS, TimeSheetService, format_minutes
 
@@ -701,6 +701,7 @@ class TimeSheetApp(tk.Tk):
         self.audit_search.pack(side="left", padx=6)
         ttk.Button(audit_controls, text="Filtern", command=self.refresh_audit_entries).pack(side="left")
         ttk.Button(audit_controls, text="Zurücksetzen", command=self.reset_audit_filters).pack(side="left", padx=6)
+        ttk.Button(audit_controls, text="CSV exportieren", command=self.export_audit_csv).pack(side="left")
         self.audit_tree = ttk.Treeview(
             audit_frame,
             columns=("time", "actor", "action", "details"),
@@ -796,6 +797,26 @@ class TimeSheetApp(tk.Tk):
         self.audit_action_filter.set("Alle Aktionen")
         self.audit_search.delete(0, "end")
         self.refresh_audit_entries()
+
+    def export_audit_csv(self):
+        action = self.audit_action_by_label.get(self.audit_action_filter.get(), "")
+        entries = [dict(entry) for entry in self.service.list_audit_entries(
+            self.user["id"], action=action, search=self.audit_search.get()
+        )]
+        for entry in entries:
+            entry["action_label"] = audit_action_label(entry["action"])
+        destination = filedialog.asksaveasfilename(
+            title="Audit-Verlauf exportieren", defaultextension=".csv",
+            initialfile=f"audit-verlauf-{date.today():%Y%m%d}.csv",
+            filetypes=(("CSV-Dateien", "*.csv"), ("Alle Dateien", "*.*")),
+        )
+        if not destination:
+            return
+        try:
+            Path(destination).write_text(audit_entries_csv(entries), encoding="utf-8-sig", newline="")
+            messagebox.showinfo("Audit-Export", f"{len(entries)} Einträge wurden exportiert.")
+        except OSError as exc:
+            messagebox.showerror("Export nicht möglich", str(exc))
 
     def toggle_selected_user(self):
         selection = self.user_tree.selection()

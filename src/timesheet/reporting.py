@@ -41,3 +41,15 @@ def monthly_report_csv(rows, year: int, month: int) -> str:
             )
         )
     return output.getvalue()
+
+
+def audit_entries_csv(entries) -> str:
+    output = io.StringIO(newline="")
+    writer = csv.writer(output, delimiter=";", lineterminator="\r\n")
+    writer.writerow(("Zeitpunkt", "Akteur", "Aktion", "Details"))
+    for entry in entries:
+        writer.writerow((
+            entry["created_at"], entry["actor_name"],
+            entry.get("action_label", entry["action"]), entry["details"],
+        ))
+    return output.getvalue()
