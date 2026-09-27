@@ -249,6 +249,27 @@ class TimeSheetService:
                 ),
             )
 
+    def set_user_role(self, target_user_id: int, role: str, admin_id: int):
+        self._require_admin(admin_id)
+        if role not in {"employee", "admin"}:
+            raise ValueError("Ungültige Benutzerrolle.")
+        if target_user_id == admin_id and role != "admin":
+            raise ValueError("Das eigene Administratorkonto kann nicht herabgestuft werden.")
+        with self.db.connect() as con:
+            result = con.execute(
+                "UPDATE users SET role=? WHERE id=? AND role<>?",
+                (role, target_user_id, role),
+            )
+            if result.rowcount != 1:
+                exists = con.execute("SELECT 1 FROM users WHERE id=?", (target_user_id,)).fetchone()
+                if not exists:
+                    raise ValueError("Benutzerkonto nicht gefunden.")
+                raise ValueError("Die gewünschte Benutzerrolle ist bereits gesetzt.")
+            con.execute(
+                "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
+                (admin_id, "user_role_changed", f"Benutzer #{target_user_id}: Rolle auf {role} geändert", self.db.now()),
+            )
+
     def list_audit_entries(self, admin_id: int, limit: int = 100, action="", search=""):
         self._require_admin(admin_id)
         safe_limit = max(1, min(int(limit), 500))
