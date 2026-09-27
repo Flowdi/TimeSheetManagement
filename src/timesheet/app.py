@@ -22,6 +22,7 @@ AUDIT_ACTION_LABELS = {
     "password_reset": "Passwort zurückgesetzt",
     "user_created": "Benutzer angelegt",
     "user_status_changed": "Kontostatus geändert",
+    "user_role_changed": "Benutzerrolle geändert",
     "time_event": "Zeitbuchung",
     "absence_requested": "Abwesenheit beantragt",
     "absence_reviewed": "Abwesenheit geprüft",
