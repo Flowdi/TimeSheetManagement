@@ -35,6 +35,7 @@ class FakeApp:
 class ThemeTests(unittest.TestCase):
     def test_audit_actions_have_readable_labels_and_safe_fallback(self):
         self.assertEqual(audit_action_label("password_reset"), "Passwort zurückgesetzt")
+        self.assertEqual(audit_action_label("user_role_changed"), "Benutzerrolle geändert")
         self.assertEqual(audit_action_label("future_action"), "future_action")
 
     def test_both_themes_have_required_colors(self):

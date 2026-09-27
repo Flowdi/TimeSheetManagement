@@ -89,6 +89,23 @@ class ServiceTests(unittest.TestCase):
             self.service.set_user_active(admin["id"], False, admin["id"])
         self.assertIsNotNone(self.service.authenticate("admin", "Sicher123!"))
 
+    def test_admin_can_promote_and_demote_another_user(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.set_user_role(self.user["id"], "admin", admin["id"])
+        self.assertEqual(self.service.authenticate("anna", "Sicher123!")["role"], "admin")
+        self.service.set_user_role(self.user["id"], "employee", admin["id"])
+        self.assertEqual(self.service.authenticate("anna", "Sicher123!")["role"], "employee")
+        self.assertEqual(self.service.list_audit_entries(admin["id"])[0]["action"], "user_role_changed")
+
+    def test_role_change_requires_admin_and_prevents_self_demotion(self):
+        with self.assertRaises(PermissionError):
+            self.service.set_user_role(self.user["id"], "admin", self.user["id"])
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        with self.assertRaisesRegex(ValueError, "nicht herabgestuft"):
+            self.service.set_user_role(admin["id"], "employee", admin["id"])
+
     def test_only_admin_can_list_recent_audit_entries(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")
         admin = self.service.authenticate("admin", "Sicher123!")

@@ -134,6 +134,8 @@ noch nicht implementiert.
 - Einreichung und Adminentscheidungen zu Anträgen im Audit-Log nachvollziehen
 - administrativ angelegte Mitarbeiterkonten mit ausführendem Admin protokollieren
 - Mitarbeiterkonten deaktivieren und später wieder aktivieren
+- Mitarbeiterkonten nach Bestätigung zu Administratoren befördern oder wieder
+  zu Mitarbeitern herabstufen
 - Audit-Verlauf mit Zeitpunkt, Akteur, Aktion und Details einsehen
 - Audit-Verlauf nach Aktion oder Freitext filtern und die aktuelle Auswahl als
   CSV-Datei exportieren
@@ -152,6 +154,11 @@ Administrationsentscheidungen werden zusätzlich in der Service-Schicht geprüft
 Nur aktive Administratorkonten dürfen Abwesenheiten oder Zeitkorrekturen
 genehmigen und ablehnen. Deaktivierte Konten können keine Arbeitszeiten oder
 neuen Anträge mehr erfassen.
+
+Rollenänderungen sind sofort wirksam und werden im Audit-Verlauf protokolliert.
+Nur ein aktives Administratorkonto darf sie ausführen. Das aktuell angemeldete
+Administratorkonto kann seine eigene Rolle nicht herabstufen, damit es sich nicht
+versehentlich aus der Verwaltung aussperrt.
 
 ### Vergessenes Passwort zurücksetzen
 

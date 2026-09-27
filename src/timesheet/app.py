@@ -22,6 +22,7 @@ AUDIT_ACTION_LABELS = {
     "password_reset": "Passwort zurückgesetzt",
     "user_created": "Benutzer angelegt",
     "user_status_changed": "Kontostatus geändert",
+    "user_role_changed": "Benutzerrolle geändert",
     "time_event": "Zeitbuchung",
     "absence_requested": "Abwesenheit beantragt",
     "absence_reviewed": "Abwesenheit geprüft",
@@ -671,6 +672,10 @@ class TimeSheetApp(tk.Tk):
             users_frame, text="Passwort zurücksetzen",
             command=self.reset_selected_user_password,
         ).pack(anchor="w", pady=(6, 0))
+        ttk.Button(
+            users_frame, text="Rolle wechseln",
+            command=self.toggle_selected_user_role,
+        ).pack(anchor="w", pady=(6, 0))
         panes = ttk.Panedwindow(tab, orient="horizontal"); panes.pack(fill="both",expand=True)
         absence_frame=ttk.LabelFrame(panes,text="Offene Abwesenheiten",padding=8); correction_frame=ttk.LabelFrame(panes,text="Offene Korrekturen",padding=8)
         audit_frame = ttk.LabelFrame(panes, text="Audit-Verlauf", padding=8)
@@ -862,6 +867,26 @@ class TimeSheetApp(tk.Tk):
             self.service.reset_user_password(user_id, password, self.user["id"])
             self.refresh_admin()
             messagebox.showinfo("Passwort zurückgesetzt", "Das neue Passwort ist sofort aktiv.")
+        except Exception as exc:
+            messagebox.showerror("Nicht möglich", str(exc))
+
+    def toggle_selected_user_role(self):
+        selection = self.user_tree.selection()
+        if not selection:
+            messagebox.showinfo("Rolle wechseln", "Bitte zuerst ein Konto auswählen.")
+            return
+        user_id = int(selection[0])
+        user = next(row for row in self.service.list_users() if row["id"] == user_id)
+        new_role = "admin" if user["role"] == "employee" else "employee"
+        role_label = "Administrator" if new_role == "admin" else "Mitarbeiter"
+        if not messagebox.askyesno(
+            "Rolle wechseln",
+            f"Rolle von {user['display_name']} wirklich auf {role_label} ändern?",
+        ):
+            return
+        try:
+            self.service.set_user_role(user_id, new_role, self.user["id"])
+            self.refresh_admin()
         except Exception as exc:
             messagebox.showerror("Nicht möglich", str(exc))
 
