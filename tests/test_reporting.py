@@ -14,6 +14,9 @@ class ReportingTests(unittest.TestCase):
                 {
                     "display_name": "Jörg Müller",
                     "work_minutes": 480,
+                    "scheduled_days": 21,
+                    "target_minutes": 7680,
+                    "monthly_balance_minutes": -7200,
                     "overtime_minutes": -30,
                     "absence_days": 3,
                     "vacation_days": 1,
@@ -30,7 +33,7 @@ class ReportingTests(unittest.TestCase):
         self.assertEqual(tuple(rows[0]), REPORT_HEADERS)
         self.assertEqual(
             rows[1],
-            ["2026-08", "Jörg Müller", "08:00 h", "-00:30 h", "3", "1", "1", "1", "1", "2"],
+            ["2026-08", "Jörg Müller", "08:00 h", "21", "128:00 h", "-120:00 h", "-00:30 h", "3", "1", "1", "1", "1", "2"],
         )
 
     def test_monthly_report_csv_can_export_empty_report(self):
