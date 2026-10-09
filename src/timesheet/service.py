@@ -50,6 +50,18 @@ def required_break_minutes(work_minutes: int) -> int:
     return 0
 
 
+def count_weekdays(start: date, end: date) -> int:
+    if end < start:
+        return 0
+    count = 0
+    current = start
+    while current <= end:
+        if current.weekday() < 5:
+            count += 1
+        current += timedelta(days=1)
+    return count
+
+
 def rest_period_violations(events, minimum_minutes: int = 11 * 60):
     previous_work_end = None
     violations = []
