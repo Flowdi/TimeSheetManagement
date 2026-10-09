@@ -689,13 +689,20 @@ class TimeSheetService:
                 first <= violation.work_date < next_month
                 for violation in rest_period_violations(rest_events)
             )
+            scheduled_days = count_weekdays(first, next_month - timedelta(days=1))
+            absence_total = sum(absence_days.values())
+            target_minutes = max(0, scheduled_days - absence_total) * 8 * 60
+            work_minutes = sum(s.work_minutes for s in summaries)
             result.append({
                 "display_name": user["display_name"],
-                "work_minutes": sum(s.work_minutes for s in summaries),
+                "work_minutes": work_minutes,
                 "overtime_minutes": sum(s.overtime_minutes for s in summaries),
+                "scheduled_days": scheduled_days,
+                "target_minutes": target_minutes,
+                "monthly_balance_minutes": work_minutes - target_minutes,
                 "warning_days": sum(bool(s.warnings) for s in summaries),
                 "rest_violation_days": rest_violations,
-                "absence_days": sum(absence_days.values()),
+                "absence_days": absence_total,
                 "vacation_days": absence_days["vacation"],
                 "holiday_days": absence_days["holiday"],
                 "overtime_reduction_days": absence_days["overtime_reduction"],

@@ -343,6 +343,9 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(anna_report["vacation_days"], 5)
         self.assertEqual(anna_report["holiday_days"], 0)
         self.assertEqual(anna_report["overtime_reduction_days"], 0)
+        self.assertEqual(anna_report["scheduled_days"], 21)
+        self.assertEqual(anna_report["target_minutes"], 16 * 8 * 60)
+        self.assertEqual(anna_report["monthly_balance_minutes"], -(16 * 8 * 60))
 
     def test_report_breaks_absence_days_down_by_type(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")
