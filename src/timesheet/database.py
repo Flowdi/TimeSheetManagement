@@ -124,6 +124,18 @@ class Database:
                     raise ValueError("Die Datenbanksicherung hat die Integritätsprüfung nicht bestanden.")
         return target
 
+    def diagnostics(self) -> dict:
+        with self.connect() as connection:
+            integrity = connection.execute("PRAGMA quick_check").fetchone()[0]
+            foreign_key_errors = len(connection.execute("PRAGMA foreign_key_check").fetchall())
+            journal_mode = connection.execute("PRAGMA journal_mode").fetchone()[0]
+        return {
+            "integrity": integrity,
+            "foreign_key_errors": foreign_key_errors,
+            "journal_mode": journal_mode,
+            "size_bytes": self.path.stat().st_size,
+        }
+
     def scalar(self, sql: str, parameters=()):
         with self.connect() as connection:
             row = connection.execute(sql, parameters).fetchone()

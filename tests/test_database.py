@@ -35,3 +35,10 @@ class DatabaseBackupTests(unittest.TestCase):
         target = self.db.backup(self.root / "backup.db")
         with self.assertRaisesRegex(ValueError, "existiert bereits"):
             self.db.backup(target)
+
+    def test_database_diagnostics_report_integrity_and_size(self):
+        result = self.db.diagnostics()
+        self.assertEqual(result["integrity"], "ok")
+        self.assertEqual(result["foreign_key_errors"], 0)
+        self.assertIn(result["journal_mode"], {"delete", "wal", "memory"})
+        self.assertGreater(result["size_bytes"], 0)
