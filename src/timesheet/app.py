@@ -544,9 +544,14 @@ class TimeSheetApp(tk.Tk):
     def build_admin_tab(self):
         tab = self.admin_tab
         ttk.Label(tab, text="Administration", style="Title.TLabel").pack(anchor="w")
+        admin_actions = ttk.Frame(tab)
+        admin_actions.pack(anchor="w", pady=(8, 0))
         ttk.Button(
-            tab, text="Datenbank sichern", command=self.backup_database
-        ).pack(anchor="w", pady=(8, 0))
+            admin_actions, text="Datenbank sichern", command=self.backup_database
+        ).pack(side="left")
+        ttk.Button(
+            admin_actions, text="Systemdiagnose", command=self.show_system_diagnostics
+        ).pack(side="left", padx=(8, 0))
         user_box = ttk.LabelFrame(tab, text="Mitarbeiter anlegen", padding=12)
         user_box.pack(fill="x", pady=12)
         fields = {}
@@ -738,6 +743,32 @@ class TimeSheetApp(tk.Tk):
             messagebox.showinfo("Datenbanksicherung", f"Sicherung erfolgreich erstellt:\n{target}")
         except Exception as exc:
             messagebox.showerror("Sicherung nicht möglich", str(exc))
+
+    def show_system_diagnostics(self):
+        try:
+            diagnostics = self.service.system_diagnostics(self.user["id"])
+            sync = diagnostics["sync"]
+            size_kib = diagnostics["size_bytes"] / 1024
+            integrity = "OK" if diagnostics["integrity"] == "ok" else diagnostics["integrity"]
+            messagebox.showinfo(
+                "Systemdiagnose",
+                "\n".join((
+                    f"Datenbankintegrität: {integrity}",
+                    f"Fremdschlüsselfehler: {diagnostics['foreign_key_errors']}",
+                    f"Journalmodus: {diagnostics['journal_mode']}",
+                    f"Datenbankgröße: {size_kib:.1f} KiB",
+                    "",
+                    f"Benutzer: {diagnostics['active_users']} aktiv / {diagnostics['total_users']} gesamt",
+                    f"Zeitbuchungen: {diagnostics['time_events']}",
+                    f"Offene Abwesenheiten: {diagnostics['pending_absences']}",
+                    f"Offene Korrekturen: {diagnostics['pending_corrections']}",
+                    "",
+                    f"Google-Sync: {sync['pending']} offen, {sync['failed']} fehlgeschlagen, "
+                    f"{sync['synced']} synchronisiert",
+                )),
+            )
+        except Exception as exc:
+            messagebox.showerror("Diagnose nicht möglich", str(exc))
 
     def refresh_failed_syncs(self):
         for item in self.failed_sync_tree.get_children():
