@@ -128,6 +128,15 @@ Sie sollte ausschließlich an einem geschützten Speicherort abgelegt werden.
 Eine automatische Wiederherstellung oder automatische Sicherungsplanung ist
 noch nicht implementiert.
 
+Über **Systemdiagnose** steht Administratoren außerdem eine schreibgeschützte
+Zustandsübersicht zur Verfügung. Sie prüft die SQLite-Integrität und
+Fremdschlüssel, zeigt Datenbankgröße und Journalmodus und fasst Benutzer,
+Zeitbuchungen, offene Anträge sowie den Google-Sync zusammen. Die Diagnose
+repariert oder verändert keine Daten und zeigt weder Passwörter noch
+Google-Zugangsdaten an. Bei einer gemeldeten Integritäts- oder
+Fremdschlüsselstörung sollte vor weiteren Änderungen zuerst eine Sicherung der
+betroffenen Datenbank erstellt und fachkundig geprüft werden.
+
 - Mitarbeiterkonten anlegen
 - offene Abwesenheitsanträge bearbeiten
 - offene Korrekturanträge bearbeiten
@@ -141,6 +150,7 @@ noch nicht implementiert.
   CSV-Datei exportieren
 - fehlgeschlagene Google-Sheets-Übertragungen mit Fehlermeldung und nächstem
   Versuch einsehen und einzeln erneut anstoßen
+- lokale Systemdiagnose für Datenbank, Antragsbestand und Sync-Warteschlange
 - Monatsauswertung je Mitarbeiter
 - gesamte erfasste Arbeitszeit
 - Überstunden- beziehungsweise Minusstundensaldo
