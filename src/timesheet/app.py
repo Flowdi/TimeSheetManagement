@@ -11,7 +11,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from .database import Database
 from .google_gateway import GoogleConfig, GoogleGateway, automatic_sync_ready
-from .reporting import audit_entries_csv, monthly_report_csv
+from .reporting import audit_entries_csv, monthly_report_csv, system_diagnostics_text
 from .settings import SettingsStore
 from .service import ABSENCE_LABELS, EVENT_LABELS, TimeSheetService, format_minutes
 
@@ -747,25 +747,9 @@ class TimeSheetApp(tk.Tk):
     def show_system_diagnostics(self):
         try:
             diagnostics = self.service.system_diagnostics(self.user["id"])
-            sync = diagnostics["sync"]
-            size_kib = diagnostics["size_bytes"] / 1024
-            integrity = "OK" if diagnostics["integrity"] == "ok" else diagnostics["integrity"]
             messagebox.showinfo(
                 "Systemdiagnose",
-                "\n".join((
-                    f"Datenbankintegrität: {integrity}",
-                    f"Fremdschlüsselfehler: {diagnostics['foreign_key_errors']}",
-                    f"Journalmodus: {diagnostics['journal_mode']}",
-                    f"Datenbankgröße: {size_kib:.1f} KiB",
-                    "",
-                    f"Benutzer: {diagnostics['active_users']} aktiv / {diagnostics['total_users']} gesamt",
-                    f"Zeitbuchungen: {diagnostics['time_events']}",
-                    f"Offene Abwesenheiten: {diagnostics['pending_absences']}",
-                    f"Offene Korrekturen: {diagnostics['pending_corrections']}",
-                    "",
-                    f"Google-Sync: {sync['pending']} offen, {sync['failed']} fehlgeschlagen, "
-                    f"{sync['synced']} synchronisiert",
-                )),
+                system_diagnostics_text(diagnostics),
             )
         except Exception as exc:
             messagebox.showerror("Diagnose nicht möglich", str(exc))

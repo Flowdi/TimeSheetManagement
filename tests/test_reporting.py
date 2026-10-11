@@ -4,7 +4,12 @@ import csv
 import io
 import unittest
 
-from timesheet.reporting import REPORT_HEADERS, audit_entries_csv, monthly_report_csv
+from timesheet.reporting import (
+    REPORT_HEADERS,
+    audit_entries_csv,
+    monthly_report_csv,
+    system_diagnostics_text,
+)
 
 
 class ReportingTests(unittest.TestCase):
@@ -47,6 +52,25 @@ class ReportingTests(unittest.TestCase):
         rows = list(csv.reader(io.StringIO(content), delimiter=";"))
         self.assertEqual(rows[0], ["Zeitpunkt", "Akteur", "Aktion", "Details"])
         self.assertEqual(rows[1][2], "Passwort zurückgesetzt")
+
+    def test_system_diagnostics_text_formats_health_summary(self):
+        content = system_diagnostics_text({
+            "integrity": "ok",
+            "foreign_key_errors": 0,
+            "journal_mode": "wal",
+            "size_bytes": 1536,
+            "active_users": 3,
+            "total_users": 4,
+            "time_events": 42,
+            "pending_absences": 2,
+            "pending_corrections": 1,
+            "sync": {"pending": 1, "failed": 2, "synced": 39},
+        })
+
+        self.assertIn("Datenbankintegrität: OK", content)
+        self.assertIn("Datenbankgröße: 1.5 KiB", content)
+        self.assertIn("Benutzer: 3 aktiv / 4 gesamt", content)
+        self.assertIn("Google-Sync: 1 offen, 2 fehlgeschlagen, 39 synchronisiert", content)
 
 
 if __name__ == "__main__":
