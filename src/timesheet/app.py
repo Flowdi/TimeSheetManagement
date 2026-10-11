@@ -11,7 +11,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from .database import Database
 from .google_gateway import GoogleConfig, GoogleGateway, automatic_sync_ready
-from .reporting import audit_entries_csv, monthly_report_csv
+from .reporting import audit_entries_csv, monthly_report_csv, system_diagnostics_text
 from .settings import SettingsStore
 from .service import ABSENCE_LABELS, EVENT_LABELS, TimeSheetService, format_minutes
 
@@ -544,9 +544,14 @@ class TimeSheetApp(tk.Tk):
     def build_admin_tab(self):
         tab = self.admin_tab
         ttk.Label(tab, text="Administration", style="Title.TLabel").pack(anchor="w")
+        admin_actions = ttk.Frame(tab)
+        admin_actions.pack(anchor="w", pady=(8, 0))
         ttk.Button(
-            tab, text="Datenbank sichern", command=self.backup_database
-        ).pack(anchor="w", pady=(8, 0))
+            admin_actions, text="Datenbank sichern", command=self.backup_database
+        ).pack(side="left")
+        ttk.Button(
+            admin_actions, text="Systemdiagnose", command=self.show_system_diagnostics
+        ).pack(side="left", padx=(8, 0))
         user_box = ttk.LabelFrame(tab, text="Mitarbeiter anlegen", padding=12)
         user_box.pack(fill="x", pady=12)
         fields = {}
@@ -738,6 +743,16 @@ class TimeSheetApp(tk.Tk):
             messagebox.showinfo("Datenbanksicherung", f"Sicherung erfolgreich erstellt:\n{target}")
         except Exception as exc:
             messagebox.showerror("Sicherung nicht möglich", str(exc))
+
+    def show_system_diagnostics(self):
+        try:
+            diagnostics = self.service.system_diagnostics(self.user["id"])
+            messagebox.showinfo(
+                "Systemdiagnose",
+                system_diagnostics_text(diagnostics),
+            )
+        except Exception as exc:
+            messagebox.showerror("Diagnose nicht möglich", str(exc))
 
     def refresh_failed_syncs(self):
         for item in self.failed_sync_tree.get_children():

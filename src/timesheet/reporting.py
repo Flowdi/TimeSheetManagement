@@ -59,3 +59,24 @@ def audit_entries_csv(entries) -> str:
             entry.get("action_label", entry["action"]), entry["details"],
         ))
     return output.getvalue()
+
+
+def system_diagnostics_text(diagnostics) -> str:
+    """Format system diagnostics for display or a future support export."""
+    sync = diagnostics["sync"]
+    integrity = "OK" if diagnostics["integrity"] == "ok" else diagnostics["integrity"]
+    size_kib = diagnostics["size_bytes"] / 1024
+    return "\n".join((
+        f"Datenbankintegrität: {integrity}",
+        f"Fremdschlüsselfehler: {diagnostics['foreign_key_errors']}",
+        f"Journalmodus: {diagnostics['journal_mode']}",
+        f"Datenbankgröße: {size_kib:.1f} KiB",
+        "",
+        f"Benutzer: {diagnostics['active_users']} aktiv / {diagnostics['total_users']} gesamt",
+        f"Zeitbuchungen: {diagnostics['time_events']}",
+        f"Offene Abwesenheiten: {diagnostics['pending_absences']}",
+        f"Offene Korrekturen: {diagnostics['pending_corrections']}",
+        "",
+        f"Google-Sync: {sync['pending']} offen, {sync['failed']} fehlgeschlagen, "
+        f"{sync['synced']} synchronisiert",
+    ))

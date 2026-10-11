@@ -42,6 +42,23 @@ class ServiceTests(unittest.TestCase):
         entries = self.service.list_audit_entries(admin["id"])
         self.assertEqual(entries[0]["action"], "database_backup")
 
+    def test_system_diagnostics_requires_admin_and_summarizes_data(self):
+        with self.assertRaises(PermissionError):
+            self.service.system_diagnostics(self.user["id"])
+
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        diagnostics = self.service.system_diagnostics(admin["id"])
+
+        self.assertEqual(diagnostics["integrity"], "ok")
+        self.assertEqual(diagnostics["foreign_key_errors"], 0)
+        self.assertEqual(diagnostics["active_users"], 2)
+        self.assertEqual(diagnostics["total_users"], 2)
+        self.assertEqual(diagnostics["time_events"], 0)
+        self.assertEqual(diagnostics["pending_absences"], 0)
+        self.assertEqual(diagnostics["pending_corrections"], 0)
+        self.assertEqual(diagnostics["sync"], {"pending": 0, "failed": 0, "synced": 0})
+
     def test_user_creation_rejects_duplicate_username(self):
         with self.assertRaisesRegex(ValueError, "bereits vergeben"):
             self.service.create_user("ANNA", "Andere Anna", "Sicher456!", "employee")

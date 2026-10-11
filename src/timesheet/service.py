@@ -450,6 +450,24 @@ class TimeSheetService:
         result.update({row["status"]: row["count"] for row in rows})
         return result
 
+    def system_diagnostics(self, admin_id: int):
+        """Return a read-only health summary for an active administrator."""
+        self._require_admin(admin_id)
+        diagnostics = self.db.diagnostics()
+        diagnostics.update(
+            active_users=self.db.scalar("SELECT COUNT(*) FROM users WHERE active=1"),
+            total_users=self.db.scalar("SELECT COUNT(*) FROM users"),
+            time_events=self.db.scalar("SELECT COUNT(*) FROM time_events"),
+            pending_absences=self.db.scalar(
+                "SELECT COUNT(*) FROM absence_requests WHERE status='pending'"
+            ),
+            pending_corrections=self.db.scalar(
+                "SELECT COUNT(*) FROM correction_requests WHERE status='pending'"
+            ),
+            sync=self.sync_stats(),
+        )
+        return diagnostics
+
     def failed_sync_jobs(self, admin_id: int):
         self._require_admin(admin_id)
         return self.db.rows(
