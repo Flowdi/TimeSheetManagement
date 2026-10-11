@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from timesheet.database import Database
 from timesheet.service import (
     TimeSheetService,
+    count_weekdays,
     required_break_minutes,
     rest_period_violations,
     summarize_events,
@@ -291,6 +292,16 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(required_break_minutes(540), 30)
         self.assertEqual(required_break_minutes(541), 45)
 
+    def test_weekday_count_uses_monday_to_friday(self):
+        self.assertEqual(
+            count_weekdays(date.fromisoformat("2026-08-01"), date.fromisoformat("2026-08-31")),
+            21,
+        )
+        self.assertEqual(
+            count_weekdays(date.fromisoformat("2026-08-08"), date.fromisoformat("2026-08-09")),
+            0,
+        )
+
     def test_rest_period_violations_detect_less_than_eleven_hours(self):
         events = [
             {"event_type": "work_end", "occurred_at": "2026-08-13T22:00:00+02:00"},
@@ -332,6 +343,9 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(anna_report["vacation_days"], 5)
         self.assertEqual(anna_report["holiday_days"], 0)
         self.assertEqual(anna_report["overtime_reduction_days"], 0)
+        self.assertEqual(anna_report["scheduled_days"], 21)
+        self.assertEqual(anna_report["target_minutes"], 16 * 8 * 60)
+        self.assertEqual(anna_report["monthly_balance_minutes"], -(16 * 8 * 60))
 
     def test_report_breaks_absence_days_down_by_type(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")

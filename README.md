@@ -144,6 +144,8 @@ noch nicht implementiert.
 - Monatsauswertung je Mitarbeiter
 - gesamte erfasste Arbeitszeit
 - Überstunden- beziehungsweise Minusstundensaldo
+- Soll-Arbeitstage von Montag bis Freitag und daraus berechnete Monatssollzeit
+- echter Monatssaldo aus erfasster Arbeitszeit minus abwesenheitsbereinigter Sollzeit
 - genehmigte Abwesenheitstage
 - Anzahl der Tage mit Pausen- oder Arbeitszeitwarnungen
 - validierte Monats- und Jahreseingabe mit verständlichen Fehlermeldungen
@@ -517,6 +519,8 @@ Nutzen, Datenschutz und Wartungsaufwand priorisiert werden.
   besitzt aber noch keine eigene Detailtabelle in der Oberfläche.
 - Feiertage werden noch nicht automatisch angelegt.
 - Sollstunden sind noch fest auf acht Stunden pro Arbeitstag ausgelegt.
+- Die Sollzeitberechnung verwendet Montag bis Freitag. Gesetzliche Feiertage
+  reduzieren das Soll nur, wenn sie als genehmigte Abwesenheit erfasst wurden.
 - Zeitkorrekturen nehmen für die Pause eine mittige Position im Arbeitstag an.
 - Monatsauswertungen berücksichtigen derzeit erfasste Arbeitstage und genehmigte
   Abwesenheiten, aber noch keinen vollständigen Sollstundenkalender.
