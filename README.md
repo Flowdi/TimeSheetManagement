@@ -70,6 +70,18 @@ festgelegten betrieblichen Rahmenbedingungen:
 - Warnung bei weniger als elf Stunden Ruhezeit zwischen Arbeitsende und dem
   nächsten Arbeitsbeginn
 
+Für den festgelegten Arbeitsort Augsburg berücksichtigt die Monatsauswertung
+automatisch die gesetzlichen Feiertage in Bayern, Mariä Himmelfahrt sowie das
+Augsburger Hohe Friedensfest. Bewegliche Feiertage werden aus dem Osterdatum des
+jeweiligen Jahres berechnet. Nur Feiertage von Montag bis Freitag reduzieren die
+Soll-Arbeitstage; ein gleichzeitig beantragter Urlaubstag wird nicht doppelt
+abgezogen. Die Zahl der automatisch berücksichtigten Feiertage erscheint in der
+Monatsansicht und im CSV-Export.
+
+Grundlage sind [Art. 1 des Bayerischen Feiertagsgesetzes](https://www.gesetze-bayern.de/Content/Document/BayFTG-1)
+und der konfigurierte Arbeitsort Augsburg. Bei einem späteren Wechsel des
+Arbeitsorts muss der Feiertagskalender entsprechend angepasst werden.
+
 Die Ruhezeitprüfung orientiert sich an
 [§ 5 Abs. 1 ArbZG](https://www.gesetze-im-internet.de/arbzg/__5.html). Sie zählt
 den Verstoß beim Tag des erneuten Arbeitsbeginns und berücksichtigt deshalb für
@@ -458,7 +470,7 @@ Aktuell geprüft werden:
 - [x] Adminansicht
 - [x] Monatsauswertung
 - [x] Dark und Light Mode
-- [ ] automatische Feiertage für Bayern und das Augsburger Friedensfest
+- [x] automatische Feiertage für Bayern und das Augsburger Friedensfest
 - [x] Passwortänderung durch angemeldete Benutzer
 - [x] administratives Zurücksetzen vergessener Passwörter
 - [x] CSV-Export
@@ -482,7 +494,7 @@ Aktuell geprüft werden:
 
 - [ ] unterschiedliche Wochenmodelle und Teilzeit
 - [ ] individuelle Sollstunden
-- [ ] Feiertagskalender und regionale Sondertage
+- [x] Feiertagskalender für den festgelegten Arbeitsort Augsburg
 - [ ] Krankheit und weitere Abwesenheitstypen
 - [ ] halbe Urlaubstage
 - [ ] Pausenerinnerungen
@@ -527,10 +539,9 @@ Nutzen, Datenschutz und Wartungsaufwand priorisiert werden.
   im Sheet werden nicht zurückgelesen.
 - Die Warteschlange speichert den letzten Fehler und die Anzahl der Versuche,
   besitzt aber noch keine eigene Detailtabelle in der Oberfläche.
-- Feiertage werden noch nicht automatisch angelegt.
 - Sollstunden sind noch fest auf acht Stunden pro Arbeitstag ausgelegt.
-- Die Sollzeitberechnung verwendet Montag bis Freitag. Gesetzliche Feiertage
-  reduzieren das Soll nur, wenn sie als genehmigte Abwesenheit erfasst wurden.
+- Der Feiertagskalender ist derzeit fest auf Augsburg eingestellt und noch nicht
+  pro Mitarbeiter oder Arbeitsort konfigurierbar.
 - Zeitkorrekturen nehmen für die Pause eine mittige Position im Arbeitstag an.
 - Monatsauswertungen berücksichtigen derzeit erfasste Arbeitstage und genehmigte
   Abwesenheiten, aber noch keinen vollständigen Sollstundenkalender.
