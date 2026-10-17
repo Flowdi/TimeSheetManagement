@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 
 from .database import Database
+from .holidays import augsburg_holidays
 from .security import hash_password, verify_password
 
 
@@ -707,7 +708,14 @@ class TimeSheetService:
                 first <= violation.work_date < next_month
                 for violation in rest_period_violations(rest_events)
             )
-            scheduled_days = count_weekdays(first, next_month - timedelta(days=1))
+            holiday_dates = {
+                day for day in augsburg_holidays(year)
+                if first <= day < next_month and day.weekday() < 5
+            }
+            scheduled_days = (
+                count_weekdays(first, next_month - timedelta(days=1))
+                - len(holiday_dates)
+            )
             absence_total = sum(absence_days.values())
             target_minutes = max(0, scheduled_days - absence_total) * 8 * 60
             work_minutes = sum(s.work_minutes for s in summaries)
@@ -716,6 +724,7 @@ class TimeSheetService:
                 "work_minutes": work_minutes,
                 "overtime_minutes": sum(s.overtime_minutes for s in summaries),
                 "scheduled_days": scheduled_days,
+                "statutory_holiday_days": len(holiday_dates),
                 "target_minutes": target_minutes,
                 "monthly_balance_minutes": work_minutes - target_minutes,
                 "warning_days": sum(bool(s.warnings) for s in summaries),
@@ -736,10 +745,11 @@ class TimeSheetService:
         first = date(year, month, 1)
         next_month = date(year + (month == 12), 1 if month == 12 else month + 1, 1)
         days = {absence_type: set() for absence_type in ABSENCE_LABELS}
+        statutory_holidays = set(augsburg_holidays(year))
         for row in self.db.rows("SELECT absence_type,start_date,end_date FROM absence_requests WHERE user_id=? AND status='approved'", (user_id,)):
             current, end = max(date.fromisoformat(row["start_date"]), first), min(date.fromisoformat(row["end_date"]), next_month - timedelta(days=1))
             while current <= end:
-                if current.weekday() < 5:
+                if current.weekday() < 5 and current not in statutory_holidays:
                     days[row["absence_type"]].add(current)
                 current += timedelta(days=1)
         return {absence_type: len(dates) for absence_type, dates in days.items()}

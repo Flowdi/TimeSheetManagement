@@ -937,13 +937,14 @@ class TimeSheetApp(tk.Tk):
         year=ttk.Spinbox(controls,from_=2024,to=2100,width=7); year.set(date.today().year); year.pack(side="left",padx=8)
         self.report_tree=ttk.Treeview(
             tab,
-            columns=("name","work","scheduled","target","month_balance","overtime","absence","vacation","holiday","reduction","rest","warnings"),
+            columns=("name","work","scheduled","statutory_holidays","target","month_balance","overtime","absence","vacation","holiday","reduction","rest","warnings"),
             show="headings",
         )
         for c,l in (
             ("name","Mitarbeiter"),
             ("work","Arbeitszeit"),
             ("scheduled","Soll-Tage"),
+            ("statutory_holidays","Ges. Feiertage"),
             ("target","Sollzeit"),
             ("month_balance","Monatssaldo"),
             ("overtime","Tagessalden"),
@@ -971,6 +972,7 @@ class TimeSheetApp(tk.Tk):
                         row["display_name"],
                         format_minutes(row["work_minutes"]),
                         row["scheduled_days"],
+                        row["statutory_holiday_days"],
                         format_minutes(row["target_minutes"]),
                         format_minutes(row["monthly_balance_minutes"]),
                         format_minutes(row["overtime_minutes"]),

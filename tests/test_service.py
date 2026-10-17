@@ -387,6 +387,30 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(report["holiday_days"], 1)
         self.assertEqual(report["overtime_reduction_days"], 1)
 
+    def test_report_excludes_augsburg_holidays_from_monthly_target(self):
+        report = next(
+            row for row in self.service.report(2026, 5) if row["display_name"] == "Anna"
+        )
+        self.assertEqual(report["statutory_holiday_days"], 3)
+        self.assertEqual(report["scheduled_days"], 18)
+        self.assertEqual(report["target_minutes"], 18 * 8 * 60)
+
+    def test_approved_vacation_does_not_double_count_statutory_holiday(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.request_absence(
+            self.user["id"], "vacation", "2026-05-01", "2026-05-04"
+        )
+        request = self.service.list_absences(self.user["id"], pending_only=True)[0]
+        self.service.review_absence(request["id"], admin["id"], "approved")
+
+        report = next(
+            row for row in self.service.report(2026, 5) if row["display_name"] == "Anna"
+        )
+        self.assertEqual(report["statutory_holiday_days"], 3)
+        self.assertEqual(report["vacation_days"], 1)
+        self.assertEqual(report["target_minutes"], 17 * 8 * 60)
+
     def test_report_counts_rest_violation_from_previous_month(self):
         for kind, stamp in (
             ("work_start", "2026-07-31T14:00:00"),
