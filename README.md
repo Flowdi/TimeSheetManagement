@@ -173,6 +173,15 @@ betroffenen Datenbank erstellt und fachkundig geprüft werden.
 - validierte Monats- und Jahreseingabe mit verständlichen Fehlermeldungen
 - CSV-Export der Monatsauswertung mit getrennten Spalten für Urlaub, Feiertage
   und Überstundenabbau
+- Jahresübersicht je Mitarbeiter über alle zwölf Monate mit Arbeitszeit,
+  Soll-Arbeitstagen, Sollzeit, Jahressaldo, gesetzlichen Feiertagen,
+  Abwesenheiten und Regelverstößen
+- CSV-Export der vollständigen Jahresübersicht für die weitere Auswertung
+
+Die Jahresübersicht wird über den gleichnamigen Button in der Monatsauswertung
+geöffnet und verwendet das dort ausgewählte Jahr. Sie summiert ausschließlich
+die bereits lokal gespeicherten Daten und verändert keine Zeitbuchungen oder
+Anträge.
 
 Administrationsentscheidungen werden zusätzlich in der Service-Schicht geprüft:
 Nur aktive Administratorkonten dürfen Abwesenheiten oder Zeitkorrekturen
@@ -507,7 +516,8 @@ Aktuell geprüft werden:
 
 - [x] CSV-Berichte
 - [ ] PDF-Berichte
-- [ ] Jahresübersichten und Urlaubssaldo
+- [x] Jahresübersichten
+- [ ] individuell konfigurierbarer Urlaubssaldo
 - [ ] grafische Trends und Warnungsanalyse
 - [ ] revisionsfähige Änderungsverläufe
 - [ ] automatische Backups
@@ -545,6 +555,8 @@ Nutzen, Datenschutz und Wartungsaufwand priorisiert werden.
 - Zeitkorrekturen nehmen für die Pause eine mittige Position im Arbeitstag an.
 - Monatsauswertungen berücksichtigen derzeit erfasste Arbeitstage und genehmigte
   Abwesenheiten, aber noch keinen vollständigen Sollstundenkalender.
+- Die Jahresübersicht zeigt genommene Urlaubstage, verwaltet aber noch keinen
+  individuellen Jahresurlaubsanspruch oder Resturlaub aus Vorjahren.
 - Branchenspezifische Ausnahmen oder tarifliche Abweichungen von der allgemeinen
   Ruhezeit werden nicht automatisch bewertet.
 - Es gibt noch keinen Windows-Installer.
