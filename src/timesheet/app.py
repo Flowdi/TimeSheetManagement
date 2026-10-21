@@ -11,7 +11,12 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from .database import Database
 from .google_gateway import GoogleConfig, GoogleGateway, automatic_sync_ready
-from .reporting import audit_entries_csv, monthly_report_csv, system_diagnostics_text
+from .reporting import (
+    annual_report_csv,
+    audit_entries_csv,
+    monthly_report_csv,
+    system_diagnostics_text,
+)
 from .settings import SettingsStore
 from .service import ABSENCE_LABELS, EVENT_LABELS, TimeSheetService, format_minutes
 
@@ -1045,6 +1050,29 @@ class TimeSheetApp(tk.Tk):
                     row["overtime_reduction_days"], row["rest_violation_days"],
                     row["warning_days"],
                 ))
+
+            def export_annual_csv():
+                path = filedialog.asksaveasfilename(
+                    parent=window,
+                    title="Jahresübersicht exportieren",
+                    defaultextension=".csv",
+                    initialfile=f"zeiterfassung-jahr-{year.get()}.csv",
+                    filetypes=(("CSV-Dateien", "*.csv"), ("Alle Dateien", "*.*")),
+                )
+                if not path:
+                    return
+                try:
+                    content = annual_report_csv(rows, int(year.get()))
+                    Path(path).write_text(content, encoding="utf-8-sig", newline="")
+                    messagebox.showinfo(
+                        "CSV-Export", "Die Jahresübersicht wurde gespeichert.", parent=window
+                    )
+                except (OSError, TypeError, ValueError) as exc:
+                    messagebox.showerror("Export nicht möglich", str(exc), parent=window)
+
+            ttk.Button(
+                frame, text="Jahresübersicht als CSV exportieren", command=export_annual_csv
+            ).pack(anchor="e", pady=(12, 0))
 
         ttk.Button(controls,text="Anzeigen",command=refresh).pack(side="left")
         ttk.Button(controls,text="CSV exportieren",command=export_csv).pack(side="left",padx=8)
