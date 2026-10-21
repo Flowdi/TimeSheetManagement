@@ -5,7 +5,9 @@ import io
 import unittest
 
 from timesheet.reporting import (
+    ANNUAL_REPORT_HEADERS,
     REPORT_HEADERS,
+    annual_report_csv,
     audit_entries_csv,
     monthly_report_csv,
     system_diagnostics_text,
@@ -46,6 +48,29 @@ class ReportingTests(unittest.TestCase):
         content = monthly_report_csv([], 2026, 8)
         rows = list(csv.reader(io.StringIO(content), delimiter=";"))
         self.assertEqual(rows, [list(REPORT_HEADERS)])
+
+    def test_annual_report_csv_contains_annual_totals(self):
+        values = {
+            "display_name": "Anna",
+            "work_minutes": 1200,
+            "scheduled_days": 250,
+            "statutory_holiday_days": 10,
+            "target_minutes": 120000,
+            "monthly_balance_minutes": -600,
+            "overtime_minutes": 90,
+            "absence_days": 12,
+            "vacation_days": 10,
+            "holiday_days": 1,
+            "overtime_reduction_days": 1,
+            "rest_violation_days": 2,
+            "warning_days": 3,
+        }
+        rows = list(csv.reader(io.StringIO(annual_report_csv([values], 2026)), delimiter=";"))
+
+        self.assertEqual(tuple(rows[0]), ANNUAL_REPORT_HEADERS)
+        self.assertEqual(rows[1][0:3], ["2026", "Anna", "20:00 h"])
+        self.assertEqual(rows[1][6], "-10:00 h")
+        self.assertEqual(rows[1][-2:], ["2", "3"])
 
     def test_audit_csv_uses_readable_action_label(self):
         content = audit_entries_csv([{
