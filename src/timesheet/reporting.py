@@ -23,6 +23,23 @@ REPORT_HEADERS = (
     "Tage mit Verstoß",
 )
 
+ANNUAL_REPORT_HEADERS = (
+    "Jahr",
+    "Mitarbeiter",
+    "Arbeitszeit",
+    "Soll-Arbeitstage",
+    "Gesetzliche Feiertage (werktags)",
+    "Sollzeit",
+    "Jahressaldo",
+    "Summe Tagessalden",
+    "Abwesenheitstage",
+    "Urlaubstage",
+    "Feiertage (Anträge)",
+    "Überstundenabbau",
+    "Ruhezeitverstöße",
+    "Tage mit Verstoß",
+)
+
 
 def monthly_report_csv(rows, year: int, month: int) -> str:
     output = io.StringIO(newline="")
@@ -48,6 +65,30 @@ def monthly_report_csv(rows, year: int, month: int) -> str:
                 row["warning_days"],
             )
         )
+    return output.getvalue()
+
+
+def annual_report_csv(rows, year: int) -> str:
+    output = io.StringIO(newline="")
+    writer = csv.writer(output, delimiter=";", lineterminator="\r\n")
+    writer.writerow(ANNUAL_REPORT_HEADERS)
+    for row in rows:
+        writer.writerow((
+            int(year),
+            row["display_name"],
+            format_minutes(row["work_minutes"]),
+            row["scheduled_days"],
+            row["statutory_holiday_days"],
+            format_minutes(row["target_minutes"]),
+            format_minutes(row["monthly_balance_minutes"]),
+            format_minutes(row["overtime_minutes"]),
+            row["absence_days"],
+            row["vacation_days"],
+            row["holiday_days"],
+            row["overtime_reduction_days"],
+            row["rest_violation_days"],
+            row["warning_days"],
+        ))
     return output.getvalue()
 
 
