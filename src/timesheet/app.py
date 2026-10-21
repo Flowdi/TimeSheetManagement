@@ -1004,8 +1004,51 @@ class TimeSheetApp(tk.Tk):
                 messagebox.showinfo("CSV-Export", "Die Monatsauswertung wurde gespeichert.")
             except (OSError, TypeError, ValueError) as exc:
                 messagebox.showerror("Export nicht möglich", str(exc))
+
+        def show_annual():
+            try:
+                rows = self.service.annual_report(year.get())
+            except (TypeError, ValueError) as exc:
+                messagebox.showerror("Jahresübersicht nicht möglich", str(exc))
+                return
+            window = tk.Toplevel(self)
+            window.title(f"Jahresübersicht {year.get()}")
+            window.geometry("1250x420")
+            frame = ttk.Frame(window, padding=16)
+            frame.pack(fill="both", expand=True)
+            ttk.Label(
+                frame, text=f"Jahresübersicht {year.get()}", style="Title.TLabel"
+            ).pack(anchor="w", pady=(0, 12))
+            tree = ttk.Treeview(
+                frame,
+                columns=("name", "work", "scheduled", "holidays", "target", "balance",
+                         "absence", "vacation", "holiday", "reduction", "rest", "warnings"),
+                show="headings",
+            )
+            for column, label in (
+                ("name", "Mitarbeiter"), ("work", "Arbeitszeit"),
+                ("scheduled", "Soll-Tage"), ("holidays", "Ges. Feiertage"),
+                ("target", "Sollzeit"), ("balance", "Jahressaldo"),
+                ("absence", "Abwesend"), ("vacation", "Urlaub"),
+                ("holiday", "Feiertage"), ("reduction", "ÜStd.-Abbau"),
+                ("rest", "Ruhezeitverstöße"), ("warnings", "Tage mit Verstoß"),
+            ):
+                tree.heading(column, text=label)
+            tree.pack(fill="both", expand=True)
+            for row in rows:
+                tree.insert("", "end", values=(
+                    row["display_name"], format_minutes(row["work_minutes"]),
+                    row["scheduled_days"], row["statutory_holiday_days"],
+                    format_minutes(row["target_minutes"]),
+                    format_minutes(row["monthly_balance_minutes"]), row["absence_days"],
+                    row["vacation_days"], row["holiday_days"],
+                    row["overtime_reduction_days"], row["rest_violation_days"],
+                    row["warning_days"],
+                ))
+
         ttk.Button(controls,text="Anzeigen",command=refresh).pack(side="left")
         ttk.Button(controls,text="CSV exportieren",command=export_csv).pack(side="left",padx=8)
+        ttk.Button(controls,text="Jahresübersicht",command=show_annual).pack(side="left")
         refresh()
 
 
