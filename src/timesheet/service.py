@@ -720,6 +720,7 @@ class TimeSheetService:
             target_minutes = max(0, scheduled_days - absence_total) * 8 * 60
             work_minutes = sum(s.work_minutes for s in summaries)
             result.append({
+                "user_id": user["id"],
                 "display_name": user["display_name"],
                 "work_minutes": work_minutes,
                 "overtime_minutes": sum(s.overtime_minutes for s in summaries),
@@ -735,6 +736,43 @@ class TimeSheetService:
                 "overtime_reduction_days": absence_days["overtime_reduction"],
             })
         return result
+
+    def annual_report(self, year: int):
+        try:
+            year = int(year)
+        except (TypeError, ValueError) as error:
+            raise ValueError("Das Jahr muss als Zahl angegeben werden.") from error
+        if not 1 <= year <= 9998:
+            raise ValueError("Das Jahr muss zwischen 1 und 9998 liegen.")
+
+        summed_fields = (
+            "work_minutes",
+            "scheduled_days",
+            "statutory_holiday_days",
+            "target_minutes",
+            "monthly_balance_minutes",
+            "overtime_minutes",
+            "warning_days",
+            "rest_violation_days",
+            "absence_days",
+            "vacation_days",
+            "holiday_days",
+            "overtime_reduction_days",
+        )
+        result = {}
+        for month in range(1, 13):
+            for monthly in self.report(year, month):
+                summary = result.setdefault(
+                    monthly["user_id"],
+                    {
+                        "user_id": monthly["user_id"],
+                        "display_name": monthly["display_name"],
+                        **{field: 0 for field in summed_fields},
+                    },
+                )
+                for field in summed_fields:
+                    summary[field] += monthly[field]
+        return list(result.values())
 
     def _approved_absence_weekdays(self, user_id, year, month):
         return sum(

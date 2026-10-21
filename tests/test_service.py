@@ -395,6 +395,30 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(report["scheduled_days"], 18)
         self.assertEqual(report["target_minutes"], 18 * 8 * 60)
 
+    def test_annual_report_sums_all_months_and_validates_year(self):
+        for kind, stamp in (
+            ("work_start", "2026-01-07T08:00:00"),
+            ("work_end", "2026-01-07T16:00:00"),
+            ("work_start", "2026-02-02T08:00:00"),
+            ("work_end", "2026-02-02T16:00:00"),
+        ):
+            self.service.record_event(
+                self.user["id"], kind, datetime.fromisoformat(stamp).astimezone()
+            )
+
+        annual = self.service.annual_report(2026)
+
+        self.assertEqual(len(annual), 1)
+        self.assertEqual(annual[0]["display_name"], "Anna")
+        self.assertEqual(annual[0]["work_minutes"], 16 * 60)
+        self.assertEqual(annual[0]["statutory_holiday_days"], 9)
+        self.assertEqual(
+            annual[0]["monthly_balance_minutes"],
+            annual[0]["work_minutes"] - annual[0]["target_minutes"],
+        )
+        with self.assertRaisesRegex(ValueError, "als Zahl"):
+            self.service.annual_report("zweitausend")
+
     def test_approved_vacation_does_not_double_count_statutory_holiday(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")
         admin = self.service.authenticate("admin", "Sicher123!")
