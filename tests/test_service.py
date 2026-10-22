@@ -116,6 +116,27 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(self.service.authenticate("anna", "Sicher123!")["role"], "employee")
         self.assertEqual(self.service.list_audit_entries(admin["id"])[0]["action"], "user_role_changed")
 
+    def test_admin_can_change_vacation_allowance_and_change_is_audited(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+
+        self.service.set_vacation_allowance(self.user["id"], 28, admin["id"])
+
+        employee = next(row for row in self.service.list_users() if row["id"] == self.user["id"])
+        self.assertEqual(employee["annual_vacation_days"], 28)
+        entry = self.service.list_audit_entries(admin["id"])[0]
+        self.assertEqual(entry["action"], "vacation_allowance_changed")
+        self.assertIn("28 Tage", entry["details"])
+
+    def test_vacation_allowance_requires_admin_and_valid_range(self):
+        with self.assertRaises(PermissionError):
+            self.service.set_vacation_allowance(self.user["id"], 28, self.user["id"])
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        for value in (-1, 366, "viele"):
+            with self.assertRaises(ValueError):
+                self.service.set_vacation_allowance(self.user["id"], value, admin["id"])
+
     def test_role_change_requires_admin_and_prevents_self_demotion(self):
         with self.assertRaises(PermissionError):
             self.service.set_user_role(self.user["id"], "admin", self.user["id"])

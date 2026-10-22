@@ -234,7 +234,42 @@ class TimeSheetService:
             )
 
     def list_users(self):
-        return self.db.rows("SELECT id,username,display_name,role,active FROM users ORDER BY display_name")
+        return self.db.rows(
+            """SELECT id,username,display_name,role,active,annual_vacation_days
+               FROM users ORDER BY display_name"""
+        )
+
+    def set_vacation_allowance(self, target_user_id: int, days: int, admin_id: int):
+        self._require_admin(admin_id)
+        try:
+            days = int(days)
+        except (TypeError, ValueError) as error:
+            raise ValueError("Der Urlaubsanspruch muss als ganze Zahl angegeben werden.") from error
+        if not 0 <= days <= 365:
+            raise ValueError("Der Urlaubsanspruch muss zwischen 0 und 365 Tagen liegen.")
+        with self.db.connect() as con:
+            result = con.execute(
+                """UPDATE users SET annual_vacation_days=?
+                   WHERE id=? AND annual_vacation_days<>?""",
+                (days, target_user_id, days),
+            )
+            if result.rowcount != 1:
+                exists = con.execute(
+                    "SELECT 1 FROM users WHERE id=?", (target_user_id,)
+                ).fetchone()
+                if not exists:
+                    raise ValueError("Benutzerkonto nicht gefunden.")
+                raise ValueError("Dieser Urlaubsanspruch ist bereits eingetragen.")
+            con.execute(
+                """INSERT INTO audit_log(actor_user_id,action,details,created_at)
+                   VALUES(?,?,?,?)""",
+                (
+                    admin_id,
+                    "vacation_allowance_changed",
+                    f"Benutzer #{target_user_id}: Jahresurlaub auf {days} Tage gesetzt",
+                    self.db.now(),
+                ),
+            )
 
     def set_user_active(self, target_user_id: int, active: bool, admin_id: int):
         self._require_admin(admin_id)
