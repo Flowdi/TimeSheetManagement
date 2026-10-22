@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL CHECK(role IN ('employee', 'admin')),
     active INTEGER NOT NULL DEFAULT 1,
+    annual_vacation_days INTEGER NOT NULL DEFAULT 30 CHECK(annual_vacation_days BETWEEN 0 AND 365),
     created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS time_events (
@@ -79,6 +80,13 @@ class Database:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as connection:
             connection.executescript(SCHEMA)
+            user_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(users)")
+            }
+            if "annual_vacation_days" not in user_columns:
+                connection.execute(
+                    "ALTER TABLE users ADD COLUMN annual_vacation_days INTEGER NOT NULL DEFAULT 30"
+                )
             now = self.now()
             connection.execute(
                 """INSERT OR IGNORE INTO sync_queue(

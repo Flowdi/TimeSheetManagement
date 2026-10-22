@@ -59,7 +59,9 @@ class ReportingTests(unittest.TestCase):
             "monthly_balance_minutes": -600,
             "overtime_minutes": 90,
             "absence_days": 12,
+            "vacation_allowance_days": 30,
             "vacation_days": 10,
+            "vacation_remaining_days": 20,
             "holiday_days": 1,
             "overtime_reduction_days": 1,
             "rest_violation_days": 2,
@@ -70,6 +72,7 @@ class ReportingTests(unittest.TestCase):
         self.assertEqual(tuple(rows[0]), ANNUAL_REPORT_HEADERS)
         self.assertEqual(rows[1][0:3], ["2026", "Anna", "20:00 h"])
         self.assertEqual(rows[1][6], "-10:00 h")
+        self.assertEqual(rows[1][9:12], ["30", "10", "20"])
         self.assertEqual(rows[1][-2:], ["2", "3"])
 
     def test_audit_csv_uses_readable_action_label(self):

@@ -28,6 +28,7 @@ AUDIT_ACTION_LABELS = {
     "user_created": "Benutzer angelegt",
     "user_status_changed": "Kontostatus geändert",
     "user_role_changed": "Benutzerrolle geändert",
+    "vacation_allowance_changed": "Urlaubsanspruch geändert",
     "time_event": "Zeitbuchung",
     "absence_requested": "Abwesenheit beantragt",
     "absence_reviewed": "Abwesenheit geprüft",
@@ -661,7 +662,7 @@ class TimeSheetApp(tk.Tk):
         users_frame.pack(fill="x", pady=(0, 12))
         self.user_tree = ttk.Treeview(
             users_frame,
-            columns=("username", "name", "role", "status"),
+            columns=("username", "name", "role", "vacation", "status"),
             show="headings",
             height=5,
         )
@@ -669,6 +670,7 @@ class TimeSheetApp(tk.Tk):
             ("username", "Benutzername"),
             ("name", "Anzeigename"),
             ("role", "Rolle"),
+            ("vacation", "Jahresurlaub"),
             ("status", "Status"),
         ):
             self.user_tree.heading(column, text=label)
@@ -685,6 +687,10 @@ class TimeSheetApp(tk.Tk):
         ttk.Button(
             users_frame, text="Rolle wechseln",
             command=self.toggle_selected_user_role,
+        ).pack(anchor="w", pady=(6, 0))
+        ttk.Button(
+            users_frame, text="Urlaubsanspruch ändern",
+            command=self.change_selected_vacation_allowance,
         ).pack(anchor="w", pady=(6, 0))
         panes = ttk.Panedwindow(tab, orient="horizontal"); panes.pack(fill="both",expand=True)
         absence_frame=ttk.LabelFrame(panes,text="Offene Abwesenheiten",padding=8); correction_frame=ttk.LabelFrame(panes,text="Offene Korrekturen",padding=8)
@@ -793,6 +799,7 @@ class TimeSheetApp(tk.Tk):
                     user["username"],
                     user["display_name"],
                     "Administrator" if user["role"] == "admin" else "Mitarbeiter",
+                    f"{user['annual_vacation_days']} Tage",
                     "Aktiv" if user["active"] else "Deaktiviert",
                 ),
             )
@@ -910,6 +917,30 @@ class TimeSheetApp(tk.Tk):
         except Exception as exc:
             messagebox.showerror("Nicht möglich", str(exc))
 
+    def change_selected_vacation_allowance(self):
+        selection = self.user_tree.selection()
+        if not selection:
+            messagebox.showinfo("Urlaubsanspruch", "Bitte zuerst ein Konto auswählen.")
+            return
+        user_id = int(selection[0])
+        user = next(row for row in self.service.list_users() if row["id"] == user_id)
+        days = simpledialog.askinteger(
+            "Urlaubsanspruch ändern",
+            f"Jährlicher Urlaubsanspruch für {user['display_name']}:",
+            initialvalue=user["annual_vacation_days"],
+            minvalue=0,
+            maxvalue=365,
+            parent=self,
+        )
+        if days is None:
+            return
+        try:
+            self.service.set_vacation_allowance(user_id, days, self.user["id"])
+            self.refresh_admin()
+            messagebox.showinfo("Urlaubsanspruch", "Der Urlaubsanspruch wurde gespeichert.")
+        except Exception as exc:
+            messagebox.showerror("Nicht möglich", str(exc))
+
     def review_selected_absence(self,status):
         selection=self.pending_absence_tree.selection()
         if not selection:
@@ -1018,7 +1049,7 @@ class TimeSheetApp(tk.Tk):
                 return
             window = tk.Toplevel(self)
             window.title(f"Jahresübersicht {year.get()}")
-            window.geometry("1250x420")
+            window.geometry("1400x420")
             frame = ttk.Frame(window, padding=16)
             frame.pack(fill="both", expand=True)
             ttk.Label(
@@ -1027,14 +1058,16 @@ class TimeSheetApp(tk.Tk):
             tree = ttk.Treeview(
                 frame,
                 columns=("name", "work", "scheduled", "holidays", "target", "balance",
-                         "absence", "vacation", "holiday", "reduction", "rest", "warnings"),
+                         "absence", "allowance", "vacation", "remaining", "holiday",
+                         "reduction", "rest", "warnings"),
                 show="headings",
             )
             for column, label in (
                 ("name", "Mitarbeiter"), ("work", "Arbeitszeit"),
                 ("scheduled", "Soll-Tage"), ("holidays", "Ges. Feiertage"),
                 ("target", "Sollzeit"), ("balance", "Jahressaldo"),
-                ("absence", "Abwesend"), ("vacation", "Urlaub"),
+                ("absence", "Abwesend"), ("allowance", "Urlaubsanspruch"),
+                ("vacation", "Urlaub genommen"), ("remaining", "Resturlaub"),
                 ("holiday", "Feiertage"), ("reduction", "ÜStd.-Abbau"),
                 ("rest", "Ruhezeitverstöße"), ("warnings", "Tage mit Verstoß"),
             ):
@@ -1046,7 +1079,8 @@ class TimeSheetApp(tk.Tk):
                     row["scheduled_days"], row["statutory_holiday_days"],
                     format_minutes(row["target_minutes"]),
                     format_minutes(row["monthly_balance_minutes"]), row["absence_days"],
-                    row["vacation_days"], row["holiday_days"],
+                    row["vacation_allowance_days"], row["vacation_days"],
+                    row["vacation_remaining_days"], row["holiday_days"],
                     row["overtime_reduction_days"], row["rest_violation_days"],
                     row["warning_days"],
                 ))
