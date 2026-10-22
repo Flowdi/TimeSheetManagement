@@ -157,6 +157,10 @@ betroffenen Datenbank erstellt und fachkundig geprüft werden.
 - Mitarbeiterkonten deaktivieren und später wieder aktivieren
 - Mitarbeiterkonten nach Bestätigung zu Administratoren befördern oder wieder
   zu Mitarbeitern herabstufen
+- jährlichen Urlaubsanspruch pro Mitarbeiter verwalten; neue Konten beginnen
+  mit einem Standardanspruch von 30 Tagen
+- Änderungen am Urlaubsanspruch mit ausführendem Administrator im Audit-Verlauf
+  protokollieren
 - Audit-Verlauf mit Zeitpunkt, Akteur, Aktion und Details einsehen
 - Audit-Verlauf nach Aktion oder Freitext filtern und die aktuelle Auswahl als
   CSV-Datei exportieren
@@ -176,6 +180,8 @@ betroffenen Datenbank erstellt und fachkundig geprüft werden.
 - Jahresübersicht je Mitarbeiter über alle zwölf Monate mit Arbeitszeit,
   Soll-Arbeitstagen, Sollzeit, Jahressaldo, gesetzlichen Feiertagen,
   Abwesenheiten und Regelverstößen
+- Urlaubsanspruch, genehmigte genommene Urlaubstage und rechnerischen Resturlaub
+  in der Jahresübersicht gegenüberstellen
 - CSV-Export der vollständigen Jahresübersicht für die weitere Auswertung
 
 Die Jahresübersicht wird über den gleichnamigen Button in der Monatsauswertung
@@ -517,7 +523,7 @@ Aktuell geprüft werden:
 - [x] CSV-Berichte
 - [ ] PDF-Berichte
 - [x] Jahresübersichten
-- [ ] individuell konfigurierbarer Urlaubssaldo
+- [x] individuell konfigurierbarer Urlaubssaldo
 - [ ] grafische Trends und Warnungsanalyse
 - [ ] revisionsfähige Änderungsverläufe
 - [ ] automatische Backups
@@ -555,8 +561,8 @@ Nutzen, Datenschutz und Wartungsaufwand priorisiert werden.
 - Zeitkorrekturen nehmen für die Pause eine mittige Position im Arbeitstag an.
 - Monatsauswertungen berücksichtigen derzeit erfasste Arbeitstage und genehmigte
   Abwesenheiten, aber noch keinen vollständigen Sollstundenkalender.
-- Die Jahresübersicht zeigt genommene Urlaubstage, verwaltet aber noch keinen
-  individuellen Jahresurlaubsanspruch oder Resturlaub aus Vorjahren.
+- Das Urlaubskonto berücksichtigt noch keinen Übertrag oder Verfall von
+  Resturlaub aus Vorjahren und keine unterjährigen Anspruchsänderungen.
 - Branchenspezifische Ausnahmen oder tarifliche Abweichungen von der allgemeinen
   Ruhezeit werden nicht automatisch bewertet.
 - Es gibt noch keinen Windows-Installer.

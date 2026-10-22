@@ -28,6 +28,7 @@ AUDIT_ACTION_LABELS = {
     "user_created": "Benutzer angelegt",
     "user_status_changed": "Kontostatus geändert",
     "user_role_changed": "Benutzerrolle geändert",
+    "vacation_allowance_changed": "Urlaubsanspruch geändert",
     "time_event": "Zeitbuchung",
     "absence_requested": "Abwesenheit beantragt",
     "absence_reviewed": "Abwesenheit geprüft",
