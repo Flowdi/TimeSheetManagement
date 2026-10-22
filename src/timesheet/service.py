@@ -757,6 +757,7 @@ class TimeSheetService:
             result.append({
                 "user_id": user["id"],
                 "display_name": user["display_name"],
+                "vacation_allowance_days": user["annual_vacation_days"],
                 "work_minutes": work_minutes,
                 "overtime_minutes": sum(s.overtime_minutes for s in summaries),
                 "scheduled_days": scheduled_days,
@@ -802,11 +803,16 @@ class TimeSheetService:
                     {
                         "user_id": monthly["user_id"],
                         "display_name": monthly["display_name"],
+                        "vacation_allowance_days": monthly["vacation_allowance_days"],
                         **{field: 0 for field in summed_fields},
                     },
                 )
                 for field in summed_fields:
                     summary[field] += monthly[field]
+        for summary in result.values():
+            summary["vacation_remaining_days"] = (
+                summary["vacation_allowance_days"] - summary["vacation_days"]
+            )
         return list(result.values())
 
     def _approved_absence_weekdays(self, user_id, year, month):
