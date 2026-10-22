@@ -1048,7 +1048,7 @@ class TimeSheetApp(tk.Tk):
                 return
             window = tk.Toplevel(self)
             window.title(f"Jahresübersicht {year.get()}")
-            window.geometry("1250x420")
+            window.geometry("1400x420")
             frame = ttk.Frame(window, padding=16)
             frame.pack(fill="both", expand=True)
             ttk.Label(
@@ -1057,14 +1057,16 @@ class TimeSheetApp(tk.Tk):
             tree = ttk.Treeview(
                 frame,
                 columns=("name", "work", "scheduled", "holidays", "target", "balance",
-                         "absence", "vacation", "holiday", "reduction", "rest", "warnings"),
+                         "absence", "allowance", "vacation", "remaining", "holiday",
+                         "reduction", "rest", "warnings"),
                 show="headings",
             )
             for column, label in (
                 ("name", "Mitarbeiter"), ("work", "Arbeitszeit"),
                 ("scheduled", "Soll-Tage"), ("holidays", "Ges. Feiertage"),
                 ("target", "Sollzeit"), ("balance", "Jahressaldo"),
-                ("absence", "Abwesend"), ("vacation", "Urlaub"),
+                ("absence", "Abwesend"), ("allowance", "Urlaubsanspruch"),
+                ("vacation", "Urlaub genommen"), ("remaining", "Resturlaub"),
                 ("holiday", "Feiertage"), ("reduction", "ÜStd.-Abbau"),
                 ("rest", "Ruhezeitverstöße"), ("warnings", "Tage mit Verstoß"),
             ):
@@ -1076,7 +1078,8 @@ class TimeSheetApp(tk.Tk):
                     row["scheduled_days"], row["statutory_holiday_days"],
                     format_minutes(row["target_minutes"]),
                     format_minutes(row["monthly_balance_minutes"]), row["absence_days"],
-                    row["vacation_days"], row["holiday_days"],
+                    row["vacation_allowance_days"], row["vacation_days"],
+                    row["vacation_remaining_days"], row["holiday_days"],
                     row["overtime_reduction_days"], row["rest_violation_days"],
                     row["warning_days"],
                 ))
