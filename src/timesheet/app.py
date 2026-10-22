@@ -661,7 +661,7 @@ class TimeSheetApp(tk.Tk):
         users_frame.pack(fill="x", pady=(0, 12))
         self.user_tree = ttk.Treeview(
             users_frame,
-            columns=("username", "name", "role", "status"),
+            columns=("username", "name", "role", "vacation", "status"),
             show="headings",
             height=5,
         )
@@ -669,6 +669,7 @@ class TimeSheetApp(tk.Tk):
             ("username", "Benutzername"),
             ("name", "Anzeigename"),
             ("role", "Rolle"),
+            ("vacation", "Jahresurlaub"),
             ("status", "Status"),
         ):
             self.user_tree.heading(column, text=label)
@@ -685,6 +686,10 @@ class TimeSheetApp(tk.Tk):
         ttk.Button(
             users_frame, text="Rolle wechseln",
             command=self.toggle_selected_user_role,
+        ).pack(anchor="w", pady=(6, 0))
+        ttk.Button(
+            users_frame, text="Urlaubsanspruch ändern",
+            command=self.change_selected_vacation_allowance,
         ).pack(anchor="w", pady=(6, 0))
         panes = ttk.Panedwindow(tab, orient="horizontal"); panes.pack(fill="both",expand=True)
         absence_frame=ttk.LabelFrame(panes,text="Offene Abwesenheiten",padding=8); correction_frame=ttk.LabelFrame(panes,text="Offene Korrekturen",padding=8)
@@ -793,6 +798,7 @@ class TimeSheetApp(tk.Tk):
                     user["username"],
                     user["display_name"],
                     "Administrator" if user["role"] == "admin" else "Mitarbeiter",
+                    f"{user['annual_vacation_days']} Tage",
                     "Aktiv" if user["active"] else "Deaktiviert",
                 ),
             )
@@ -907,6 +913,30 @@ class TimeSheetApp(tk.Tk):
         try:
             self.service.set_user_role(user_id, new_role, self.user["id"])
             self.refresh_admin()
+        except Exception as exc:
+            messagebox.showerror("Nicht möglich", str(exc))
+
+    def change_selected_vacation_allowance(self):
+        selection = self.user_tree.selection()
+        if not selection:
+            messagebox.showinfo("Urlaubsanspruch", "Bitte zuerst ein Konto auswählen.")
+            return
+        user_id = int(selection[0])
+        user = next(row for row in self.service.list_users() if row["id"] == user_id)
+        days = simpledialog.askinteger(
+            "Urlaubsanspruch ändern",
+            f"Jährlicher Urlaubsanspruch für {user['display_name']}:",
+            initialvalue=user["annual_vacation_days"],
+            minvalue=0,
+            maxvalue=365,
+            parent=self,
+        )
+        if days is None:
+            return
+        try:
+            self.service.set_vacation_allowance(user_id, days, self.user["id"])
+            self.refresh_admin()
+            messagebox.showinfo("Urlaubsanspruch", "Der Urlaubsanspruch wurde gespeichert.")
         except Exception as exc:
             messagebox.showerror("Nicht möglich", str(exc))
 
