@@ -42,3 +42,25 @@ class DatabaseBackupTests(unittest.TestCase):
         self.assertEqual(result["foreign_key_errors"], 0)
         self.assertIn(result["journal_mode"], {"delete", "wal", "memory"})
         self.assertGreater(result["size_bytes"], 0)
+
+    def test_existing_users_receive_default_vacation_allowance(self):
+        legacy_path = self.root / "legacy.db"
+        with closing(sqlite3.connect(legacy_path)) as connection:
+            connection.execute(
+                """CREATE TABLE users (
+                    id INTEGER PRIMARY KEY, username TEXT, display_name TEXT,
+                    password_hash TEXT, role TEXT, active INTEGER, created_at TEXT
+                )"""
+            )
+            connection.execute(
+                "INSERT INTO users VALUES(1,'anna','Anna','hash','employee',1,'2026-01-01')"
+            )
+            connection.commit()
+
+        migrated = Database(legacy_path)
+
+        with migrated.connect() as connection:
+            allowance = connection.execute(
+                "SELECT annual_vacation_days FROM users WHERE id=1"
+            ).fetchone()[0]
+        self.assertEqual(allowance, 30)
