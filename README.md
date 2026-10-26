@@ -103,6 +103,7 @@ Aktuell unterstützte Arten:
 - Urlaub
 - Feiertag
 - Überstundenabbau
+- Krankheit
 
 Mitarbeiter wählen Art und Zeitraum und können eine Bemerkung hinterlegen. Neue
 Anträge erhalten zunächst den Status `Offen`. Ein Administrator kann sie
@@ -110,6 +111,12 @@ genehmigen oder ablehnen. In der persönlichen Übersicht bleibt der Status
 nachvollziehbar. Offene und genehmigte Anträge eines Mitarbeiters dürfen sich
 nicht überschneiden. Ein abgelehnter Zeitraum kann dagegen erneut beantragt
 werden.
+
+Krankheit verwendet denselben nachvollziehbaren Antrags- und
+Genehmigungsworkflow. Genehmigte Krankheitstage werden werktags von der Sollzeit
+abgezogen und in Monatsansicht, Jahresübersicht und CSV-Berichten separat
+ausgewiesen. In der Bemerkung sollten aus Datenschutzgründen keine Diagnosen
+oder anderen medizinischen Details erfasst werden.
 
 ### Nachträgliche Korrekturen
 
@@ -176,7 +183,7 @@ betroffenen Datenbank erstellt und fachkundig geprüft werden.
 - Anzahl der Tage mit Pausen- oder Arbeitszeitwarnungen
 - validierte Monats- und Jahreseingabe mit verständlichen Fehlermeldungen
 - CSV-Export der Monatsauswertung mit getrennten Spalten für Urlaub, Feiertage
-  und Überstundenabbau
+  Überstundenabbau und Krankheit
 - Jahresübersicht je Mitarbeiter über alle zwölf Monate mit Arbeitszeit,
   Soll-Arbeitstagen, Sollzeit, Jahressaldo, gesetzlichen Feiertagen,
   Abwesenheiten und Regelverstößen
@@ -510,7 +517,8 @@ Aktuell geprüft werden:
 - [ ] unterschiedliche Wochenmodelle und Teilzeit
 - [ ] individuelle Sollstunden
 - [x] Feiertagskalender für den festgelegten Arbeitsort Augsburg
-- [ ] Krankheit und weitere Abwesenheitstypen
+- [x] Krankheit als Abwesenheitstyp
+- [ ] weitere Abwesenheitstypen
 - [ ] halbe Urlaubstage
 - [ ] Pausenerinnerungen
 - [x] Ruhezeitprüfung zwischen Arbeitstagen
@@ -563,6 +571,8 @@ Nutzen, Datenschutz und Wartungsaufwand priorisiert werden.
   Abwesenheiten, aber noch keinen vollständigen Sollstundenkalender.
 - Das Urlaubskonto berücksichtigt noch keinen Übertrag oder Verfall von
   Resturlaub aus Vorjahren und keine unterjährigen Anspruchsänderungen.
+- Für Krankheit gibt es noch keinen separaten Nachweis- oder
+  Arbeitsunfähigkeitsbescheinigungs-Workflow.
 - Branchenspezifische Ausnahmen oder tarifliche Abweichungen von der allgemeinen
   Ruhezeit werden nicht automatisch bewertet.
 - Es gibt noch keinen Windows-Installer.

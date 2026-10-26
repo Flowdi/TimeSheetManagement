@@ -544,7 +544,7 @@ class ServiceTests(unittest.TestCase):
     def test_absence_rejects_unknown_type(self):
         with self.assertRaisesRegex(ValueError, "Unbekannte Abwesenheitsart"):
             self.service.request_absence(
-                self.user["id"], "sick_leave", "2026-08-17", "2026-08-18"
+                self.user["id"], "parental_leave", "2026-08-17", "2026-08-18"
             )
         self.assertEqual(self.service.list_absences(self.user["id"]), [])
 
