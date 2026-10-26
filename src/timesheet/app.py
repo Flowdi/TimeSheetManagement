@@ -973,7 +973,7 @@ class TimeSheetApp(tk.Tk):
         year=ttk.Spinbox(controls,from_=2024,to=2100,width=7); year.set(date.today().year); year.pack(side="left",padx=8)
         self.report_tree=ttk.Treeview(
             tab,
-            columns=("name","work","scheduled","statutory_holidays","target","month_balance","overtime","absence","vacation","holiday","reduction","rest","warnings"),
+            columns=("name","work","scheduled","statutory_holidays","target","month_balance","overtime","absence","vacation","holiday","reduction","sick","rest","warnings"),
             show="headings",
         )
         for c,l in (
@@ -988,6 +988,7 @@ class TimeSheetApp(tk.Tk):
             ("vacation","Urlaub"),
             ("holiday","Feiertage"),
             ("reduction","ÜStd.-Abbau"),
+            ("sick","Krankheit"),
             ("rest","Ruhezeitverstöße"),
             ("warnings","Tage mit Verstoß"),
         ):
@@ -1016,6 +1017,7 @@ class TimeSheetApp(tk.Tk):
                         row["vacation_days"],
                         row["holiday_days"],
                         row["overtime_reduction_days"],
+                        row["sick_leave_days"],
                         row["rest_violation_days"],
                         row["warning_days"],
                     ),
@@ -1059,7 +1061,7 @@ class TimeSheetApp(tk.Tk):
                 frame,
                 columns=("name", "work", "scheduled", "holidays", "target", "balance",
                          "absence", "allowance", "vacation", "remaining", "holiday",
-                         "reduction", "rest", "warnings"),
+                         "reduction", "sick", "rest", "warnings"),
                 show="headings",
             )
             for column, label in (
@@ -1069,6 +1071,7 @@ class TimeSheetApp(tk.Tk):
                 ("absence", "Abwesend"), ("allowance", "Urlaubsanspruch"),
                 ("vacation", "Urlaub genommen"), ("remaining", "Resturlaub"),
                 ("holiday", "Feiertage"), ("reduction", "ÜStd.-Abbau"),
+                ("sick", "Krankheit"),
                 ("rest", "Ruhezeitverstöße"), ("warnings", "Tage mit Verstoß"),
             ):
                 tree.heading(column, text=label)
@@ -1081,7 +1084,8 @@ class TimeSheetApp(tk.Tk):
                     format_minutes(row["monthly_balance_minutes"]), row["absence_days"],
                     row["vacation_allowance_days"], row["vacation_days"],
                     row["vacation_remaining_days"], row["holiday_days"],
-                    row["overtime_reduction_days"], row["rest_violation_days"],
+                    row["overtime_reduction_days"], row["sick_leave_days"],
+                    row["rest_violation_days"],
                     row["warning_days"],
                 ))
 

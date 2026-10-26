@@ -30,6 +30,7 @@ class ReportingTests(unittest.TestCase):
                     "vacation_days": 1,
                     "holiday_days": 1,
                     "overtime_reduction_days": 1,
+                    "sick_leave_days": 2,
                     "rest_violation_days": 1,
                     "warning_days": 2,
                 }
@@ -41,7 +42,7 @@ class ReportingTests(unittest.TestCase):
         self.assertEqual(tuple(rows[0]), REPORT_HEADERS)
         self.assertEqual(
             rows[1],
-            ["2026-08", "Jörg Müller", "08:00 h", "21", "2", "128:00 h", "-120:00 h", "-00:30 h", "3", "1", "1", "1", "1", "2"],
+            ["2026-08", "Jörg Müller", "08:00 h", "21", "2", "128:00 h", "-120:00 h", "-00:30 h", "3", "1", "1", "1", "2", "1", "2"],
         )
 
     def test_monthly_report_csv_can_export_empty_report(self):
@@ -64,6 +65,7 @@ class ReportingTests(unittest.TestCase):
             "vacation_remaining_days": 20,
             "holiday_days": 1,
             "overtime_reduction_days": 1,
+            "sick_leave_days": 2,
             "rest_violation_days": 2,
             "warning_days": 3,
         }
