@@ -18,6 +18,7 @@ ABSENCE_LABELS = {
     "vacation": "Urlaub",
     "holiday": "Feiertag",
     "overtime_reduction": "Überstundenabbau",
+    "sick_leave": "Krankheit",
 }
 EXPECTED_NEXT = {
     None: "work_start",
