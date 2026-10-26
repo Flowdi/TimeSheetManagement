@@ -19,6 +19,7 @@ REPORT_HEADERS = (
     "Urlaubstage",
     "Feiertage",
     "Überstundenabbau",
+    "Krankheitstage",
     "Ruhezeitverstöße",
     "Tage mit Verstoß",
 )
@@ -38,6 +39,7 @@ ANNUAL_REPORT_HEADERS = (
     "Resturlaub",
     "Feiertage (Anträge)",
     "Überstundenabbau",
+    "Krankheitstage",
     "Ruhezeitverstöße",
     "Tage mit Verstoß",
 )
@@ -63,6 +65,7 @@ def monthly_report_csv(rows, year: int, month: int) -> str:
                 row["vacation_days"],
                 row["holiday_days"],
                 row["overtime_reduction_days"],
+                row["sick_leave_days"],
                 row["rest_violation_days"],
                 row["warning_days"],
             )
@@ -90,6 +93,7 @@ def annual_report_csv(rows, year: int) -> str:
             row["vacation_remaining_days"],
             row["holiday_days"],
             row["overtime_reduction_days"],
+            row["sick_leave_days"],
             row["rest_violation_days"],
             row["warning_days"],
         ))

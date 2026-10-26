@@ -18,6 +18,7 @@ ABSENCE_LABELS = {
     "vacation": "Urlaub",
     "holiday": "Feiertag",
     "overtime_reduction": "Überstundenabbau",
+    "sick_leave": "Krankheit",
 }
 EXPECTED_NEXT = {
     None: "work_start",
@@ -770,6 +771,7 @@ class TimeSheetService:
                 "vacation_days": absence_days["vacation"],
                 "holiday_days": absence_days["holiday"],
                 "overtime_reduction_days": absence_days["overtime_reduction"],
+                "sick_leave_days": absence_days["sick_leave"],
             })
         return result
 
@@ -794,6 +796,7 @@ class TimeSheetService:
             "vacation_days",
             "holiday_days",
             "overtime_reduction_days",
+            "sick_leave_days",
         )
         result = {}
         for month in range(1, 13):

@@ -64,3 +64,36 @@ class DatabaseBackupTests(unittest.TestCase):
                 "SELECT annual_vacation_days FROM users WHERE id=1"
             ).fetchone()[0]
         self.assertEqual(allowance, 30)
+
+    def test_existing_absence_requests_survive_sick_leave_migration(self):
+        legacy_path = self.root / "legacy-absence.db"
+        with closing(sqlite3.connect(legacy_path)) as connection:
+            connection.executescript("""
+                CREATE TABLE users (id INTEGER PRIMARY KEY);
+                INSERT INTO users VALUES(1);
+                CREATE TABLE absence_requests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    absence_type TEXT NOT NULL CHECK(absence_type IN ('vacation','holiday','overtime_reduction')),
+                    start_date TEXT NOT NULL, end_date TEXT NOT NULL,
+                    reason TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    reviewed_by INTEGER REFERENCES users(id), reviewed_at TEXT,
+                    created_at TEXT NOT NULL
+                );
+                INSERT INTO absence_requests
+                VALUES(1,1,'vacation','2026-08-01','2026-08-02','Erholung','approved',NULL,NULL,'2026-01-01');
+            """)
+
+        migrated = Database(legacy_path)
+
+        with migrated.connect() as connection:
+            existing = connection.execute(
+                "SELECT absence_type,reason FROM absence_requests WHERE id=1"
+            ).fetchone()
+            connection.execute(
+                """INSERT INTO absence_requests(
+                       user_id,absence_type,start_date,end_date,created_at
+                   ) VALUES(1,'sick_leave','2026-09-01','2026-09-01','2026-01-01')"""
+            )
+        self.assertEqual(tuple(existing), ("vacation", "Erholung"))
