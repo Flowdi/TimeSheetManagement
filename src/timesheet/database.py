@@ -30,7 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_events_user_time ON time_events(user_id, occurred
 CREATE TABLE IF NOT EXISTS absence_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id),
-    absence_type TEXT NOT NULL CHECK(absence_type IN ('vacation','holiday','overtime_reduction')),
+    absence_type TEXT NOT NULL CHECK(absence_type IN ('vacation','holiday','overtime_reduction','sick_leave')),
     start_date TEXT NOT NULL,
     end_date TEXT NOT NULL,
     reason TEXT NOT NULL DEFAULT '',
@@ -87,6 +87,30 @@ class Database:
                 connection.execute(
                     "ALTER TABLE users ADD COLUMN annual_vacation_days INTEGER NOT NULL DEFAULT 30"
                 )
+            absence_schema = connection.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='absence_requests'"
+            ).fetchone()["sql"]
+            if "sick_leave" not in absence_schema:
+                connection.execute("PRAGMA foreign_keys = OFF")
+                connection.executescript("""
+                    CREATE TABLE absence_requests_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL REFERENCES users(id),
+                        absence_type TEXT NOT NULL CHECK(absence_type IN ('vacation','holiday','overtime_reduction','sick_leave')),
+                        start_date TEXT NOT NULL,
+                        end_date TEXT NOT NULL,
+                        reason TEXT NOT NULL DEFAULT '',
+                        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+                        reviewed_by INTEGER REFERENCES users(id),
+                        reviewed_at TEXT,
+                        created_at TEXT NOT NULL
+                    );
+                    INSERT INTO absence_requests_new
+                    SELECT * FROM absence_requests;
+                    DROP TABLE absence_requests;
+                    ALTER TABLE absence_requests_new RENAME TO absence_requests;
+                """)
+                connection.execute("PRAGMA foreign_keys = ON")
             now = self.now()
             connection.execute(
                 """INSERT OR IGNORE INTO sync_queue(
