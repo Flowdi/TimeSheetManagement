@@ -392,6 +392,7 @@ class ServiceTests(unittest.TestCase):
             ("vacation", "2026-08-17"),
             ("holiday", "2026-08-18"),
             ("overtime_reduction", "2026-08-19"),
+            ("sick_leave", "2026-08-20"),
         ):
             self.service.request_absence(self.user["id"], absence_type, day, day)
             request = next(
@@ -403,10 +404,11 @@ class ServiceTests(unittest.TestCase):
         report = next(
             row for row in self.service.report(2026, 8) if row["display_name"] == "Anna"
         )
-        self.assertEqual(report["absence_days"], 3)
+        self.assertEqual(report["absence_days"], 4)
         self.assertEqual(report["vacation_days"], 1)
         self.assertEqual(report["holiday_days"], 1)
         self.assertEqual(report["overtime_reduction_days"], 1)
+        self.assertEqual(report["sick_leave_days"], 1)
 
     def test_sick_leave_uses_regular_approval_workflow(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")
