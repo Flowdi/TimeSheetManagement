@@ -9,6 +9,7 @@ from datetime import date, datetime
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
+from .backup_policy import BackupPolicy, run_backup_policy
 from .database import Database
 from .google_gateway import GoogleConfig, GoogleGateway, automatic_sync_ready
 from .reporting import (
@@ -83,6 +84,8 @@ class TimeSheetApp(tk.Tk):
         self.db = Database(db_path or app_data_dir() / "timesheet.db")
         self.service = TimeSheetService(self.db)
         self.settings = SettingsStore(app_data_dir() / "settings.json")
+        self.backup_status = "Automatische Sicherung noch nicht ausgeführt."
+        self.run_automatic_backup()
         self.user = None
         self._sync_worker_running = False
         self.style = ttk.Style(self)
@@ -95,6 +98,21 @@ class TimeSheetApp(tk.Tk):
         else:
             self.show_first_run()
         self.after(2000, self.schedule_sync_retries)
+
+    def run_automatic_backup(self):
+        policy = BackupPolicy.from_settings(
+            self.settings.load(), app_data_dir() / "backups"
+        )
+        try:
+            result = run_backup_policy(self.db, policy)
+            if not result["enabled"]:
+                self.backup_status = "Automatische Sicherungen sind deaktiviert."
+            elif result["created"]:
+                self.backup_status = f"Automatische Sicherung erstellt: {result['target']}"
+            else:
+                self.backup_status = f"Heutige Sicherung bereits vorhanden: {result['target']}"
+        except (OSError, ValueError) as exc:
+            self.backup_status = f"Automatische Sicherung fehlgeschlagen: {exc}"
 
     def clear(self):
         for child in self.winfo_children():
