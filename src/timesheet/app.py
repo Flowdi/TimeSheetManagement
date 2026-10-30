@@ -9,6 +9,7 @@ from datetime import date, datetime
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
+from .backup_policy import BackupPolicy, run_backup_policy
 from .database import Database
 from .google_gateway import GoogleConfig, GoogleGateway, automatic_sync_ready
 from .reporting import (
@@ -83,6 +84,8 @@ class TimeSheetApp(tk.Tk):
         self.db = Database(db_path or app_data_dir() / "timesheet.db")
         self.service = TimeSheetService(self.db)
         self.settings = SettingsStore(app_data_dir() / "settings.json")
+        self.backup_status = "Automatische Sicherung noch nicht ausgeführt."
+        self.run_automatic_backup()
         self.user = None
         self._sync_worker_running = False
         self.style = ttk.Style(self)
@@ -95,6 +98,21 @@ class TimeSheetApp(tk.Tk):
         else:
             self.show_first_run()
         self.after(2000, self.schedule_sync_retries)
+
+    def run_automatic_backup(self):
+        policy = BackupPolicy.from_settings(
+            self.settings.load(), app_data_dir() / "backups"
+        )
+        try:
+            result = run_backup_policy(self.db, policy)
+            if not result["enabled"]:
+                self.backup_status = "Automatische Sicherungen sind deaktiviert."
+            elif result["created"]:
+                self.backup_status = f"Automatische Sicherung erstellt: {result['target']}"
+            else:
+                self.backup_status = f"Heutige Sicherung bereits vorhanden: {result['target']}"
+        except (OSError, ValueError) as exc:
+            self.backup_status = f"Automatische Sicherung fehlgeschlagen: {exc}"
 
     def clear(self):
         for child in self.winfo_children():
@@ -558,6 +576,63 @@ class TimeSheetApp(tk.Tk):
         ttk.Button(
             admin_actions, text="Systemdiagnose", command=self.show_system_diagnostics
         ).pack(side="left", padx=(8, 0))
+        backup_settings = self.settings.load()
+        backup_box = ttk.LabelFrame(tab, text="Automatische Sicherungen", padding=10)
+        backup_box.pack(fill="x", pady=(12, 0))
+        backup_enabled = tk.BooleanVar(
+            value=backup_settings.get("automatic_backup_enabled", True)
+        )
+        ttk.Checkbutton(
+            backup_box, text="Tägliche Sicherung aktivieren", variable=backup_enabled
+        ).grid(row=0, column=0, columnspan=2, sticky="w")
+        ttk.Label(backup_box, text="Ordner").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        backup_directory = ttk.Entry(backup_box, width=55)
+        backup_directory.insert(
+            0,
+            backup_settings.get(
+                "automatic_backup_directory", str(app_data_dir() / "backups")
+            ),
+        )
+        backup_directory.grid(row=2, column=0, sticky="ew", padx=(0, 8))
+        ttk.Label(backup_box, text="Anzahl Sicherungen").grid(
+            row=1, column=2, sticky="w", pady=(8, 0)
+        )
+        backup_retention = ttk.Spinbox(backup_box, from_=1, to=3650, width=8)
+        backup_retention.set(backup_settings.get("automatic_backup_retention", 14))
+        backup_retention.grid(row=2, column=2, sticky="w")
+
+        def choose_backup_directory():
+            selected = filedialog.askdirectory(title="Ordner für automatische Sicherungen")
+            if selected:
+                backup_directory.delete(0, "end")
+                backup_directory.insert(0, selected)
+
+        def save_backup_settings():
+            try:
+                retention = int(backup_retention.get())
+                if not 1 <= retention <= 3650:
+                    raise ValueError("Die Anzahl muss zwischen 1 und 3650 liegen.")
+                if not backup_directory.get().strip():
+                    raise ValueError("Bitte einen Sicherungsordner auswählen.")
+                self.settings.update(
+                    automatic_backup_enabled=backup_enabled.get(),
+                    automatic_backup_directory=backup_directory.get().strip(),
+                    automatic_backup_retention=retention,
+                )
+                self.run_automatic_backup()
+                backup_status.configure(text=self.backup_status)
+            except (OSError, ValueError) as exc:
+                messagebox.showerror("Backup-Einstellungen", str(exc))
+
+        ttk.Button(
+            backup_box, text="Ordner wählen", command=choose_backup_directory
+        ).grid(row=2, column=1, padx=(0, 8))
+        ttk.Button(
+            backup_box, text="Speichern und jetzt prüfen", command=save_backup_settings
+        ).grid(row=2, column=3, padx=(8, 0))
+        backup_status = ttk.Label(backup_box, text=self.backup_status, style="Muted.TLabel")
+        backup_status.grid(row=3, column=0, columnspan=4, sticky="w", pady=(8, 0))
+        backup_box.columnconfigure(0, weight=1)
         user_box = ttk.LabelFrame(tab, text="Mitarbeiter anlegen", padding=12)
         user_box.pack(fill="x", pady=12)
         fields = {}

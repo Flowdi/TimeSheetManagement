@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import closing, contextmanager
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 
@@ -155,6 +155,41 @@ class Database:
                 if result != "ok":
                     raise ValueError("Die Datenbanksicherung hat die Integritätsprüfung nicht bestanden.")
         return target
+
+    def daily_backup(self, directory: Path | str, backup_date: date | None = None):
+        """Create at most one verified automatic backup for a calendar day."""
+        backup_date = backup_date or date.today()
+        backup_directory = Path(directory)
+        backup_directory.mkdir(parents=True, exist_ok=True)
+        target = backup_directory / f"timesheet-auto-{backup_date:%Y%m%d}.db"
+        if target.exists():
+            with closing(sqlite3.connect(target)) as connection:
+                if connection.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                    raise ValueError("Die vorhandene automatische Sicherung ist beschädigt.")
+            return target, False
+        return self.backup(target), True
+
+    @staticmethod
+    def prune_daily_backups(directory: Path | str, retain: int = 14):
+        try:
+            retain = int(retain)
+        except (TypeError, ValueError) as error:
+            raise ValueError("Die Aufbewahrungsanzahl muss eine ganze Zahl sein.") from error
+        if not 1 <= retain <= 3650:
+            raise ValueError("Es müssen zwischen 1 und 3650 Sicherungen aufbewahrt werden.")
+        candidates = []
+        for path in Path(directory).glob("timesheet-auto-*.db"):
+            try:
+                backup_date = datetime.strptime(path.stem.removeprefix("timesheet-auto-"), "%Y%m%d")
+            except ValueError:
+                continue
+            candidates.append((backup_date, path))
+        candidates.sort(reverse=True)
+        removed = []
+        for _, path in candidates[retain:]:
+            path.unlink()
+            removed.append(path)
+        return removed
 
     def diagnostics(self) -> dict:
         with self.connect() as connection:
