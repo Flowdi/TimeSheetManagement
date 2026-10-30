@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import closing, contextmanager
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 
@@ -155,6 +155,19 @@ class Database:
                 if result != "ok":
                     raise ValueError("Die Datenbanksicherung hat die Integritätsprüfung nicht bestanden.")
         return target
+
+    def daily_backup(self, directory: Path | str, backup_date: date | None = None):
+        """Create at most one verified automatic backup for a calendar day."""
+        backup_date = backup_date or date.today()
+        backup_directory = Path(directory)
+        backup_directory.mkdir(parents=True, exist_ok=True)
+        target = backup_directory / f"timesheet-auto-{backup_date:%Y%m%d}.db"
+        if target.exists():
+            with closing(sqlite3.connect(target)) as connection:
+                if connection.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                    raise ValueError("Die vorhandene automatische Sicherung ist beschädigt.")
+            return target, False
+        return self.backup(target), True
 
     def diagnostics(self) -> dict:
         with self.connect() as connection:

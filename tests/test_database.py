@@ -2,6 +2,7 @@ import sqlite3
 import tempfile
 import unittest
 from contextlib import closing
+from datetime import date
 from pathlib import Path
 
 from timesheet.database import Database
@@ -35,6 +36,20 @@ class DatabaseBackupTests(unittest.TestCase):
         target = self.db.backup(self.root / "backup.db")
         with self.assertRaisesRegex(ValueError, "existiert bereits"):
             self.db.backup(target)
+
+    def test_daily_backup_is_verified_and_idempotent(self):
+        backup_day = date(2026, 10, 30)
+        target, created = self.db.daily_backup(self.root / "automatic", backup_day)
+        repeated_target, repeated_created = self.db.daily_backup(
+            self.root / "automatic", backup_day
+        )
+
+        self.assertTrue(created)
+        self.assertFalse(repeated_created)
+        self.assertEqual(target, repeated_target)
+        self.assertEqual(target.name, "timesheet-auto-20261030.db")
+        with closing(sqlite3.connect(target)) as connection:
+            self.assertEqual(connection.execute("PRAGMA quick_check").fetchone()[0], "ok")
 
     def test_database_diagnostics_report_integrity_and_size(self):
         result = self.db.diagnostics()
