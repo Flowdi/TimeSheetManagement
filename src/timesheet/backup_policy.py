@@ -32,4 +32,3 @@ def run_backup_policy(database, policy: BackupPolicy):
     target, created = database.daily_backup(policy.directory)
     removed = tuple(database.prune_daily_backups(policy.directory, policy.retention_count))
     return {"enabled": True, "created": created, "target": target, "removed": removed}
-
