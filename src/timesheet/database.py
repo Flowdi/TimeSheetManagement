@@ -169,6 +169,28 @@ class Database:
             return target, False
         return self.backup(target), True
 
+    @staticmethod
+    def prune_daily_backups(directory: Path | str, retain: int = 14):
+        try:
+            retain = int(retain)
+        except (TypeError, ValueError) as error:
+            raise ValueError("Die Aufbewahrungsanzahl muss eine ganze Zahl sein.") from error
+        if not 1 <= retain <= 3650:
+            raise ValueError("Es müssen zwischen 1 und 3650 Sicherungen aufbewahrt werden.")
+        candidates = []
+        for path in Path(directory).glob("timesheet-auto-*.db"):
+            try:
+                backup_date = datetime.strptime(path.stem.removeprefix("timesheet-auto-"), "%Y%m%d")
+            except ValueError:
+                continue
+            candidates.append((backup_date, path))
+        candidates.sort(reverse=True)
+        removed = []
+        for _, path in candidates[retain:]:
+            path.unlink()
+            removed.append(path)
+        return removed
+
     def diagnostics(self) -> dict:
         with self.connect() as connection:
             integrity = connection.execute("PRAGMA quick_check").fetchone()[0]

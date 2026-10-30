@@ -51,6 +51,24 @@ class DatabaseBackupTests(unittest.TestCase):
         with closing(sqlite3.connect(target)) as connection:
             self.assertEqual(connection.execute("PRAGMA quick_check").fetchone()[0], "ok")
 
+    def test_daily_backup_retention_removes_only_old_generated_files(self):
+        directory = self.root / "automatic"
+        for day in (date(2026, 10, 28), date(2026, 10, 29), date(2026, 10, 30)):
+            self.db.daily_backup(directory, day)
+        unrelated = directory / "timesheet-auto-not-a-date.db"
+        unrelated.write_text("nicht löschen", encoding="utf-8")
+
+        removed = self.db.prune_daily_backups(directory, retain=2)
+
+        self.assertEqual([path.name for path in removed], ["timesheet-auto-20261028.db"])
+        self.assertTrue((directory / "timesheet-auto-20261029.db").exists())
+        self.assertTrue((directory / "timesheet-auto-20261030.db").exists())
+        self.assertTrue(unrelated.exists())
+
+    def test_daily_backup_retention_validates_limit(self):
+        with self.assertRaises(ValueError):
+            self.db.prune_daily_backups(self.root, retain=0)
+
     def test_database_diagnostics_report_integrity_and_size(self):
         result = self.db.diagnostics()
         self.assertEqual(result["integrity"], "ok")
