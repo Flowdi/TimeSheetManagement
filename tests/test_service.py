@@ -42,6 +42,19 @@ class ServiceTests(unittest.TestCase):
         entries = self.service.list_audit_entries(admin["id"])
         self.assertEqual(entries[0]["action"], "database_backup")
 
+    def test_automatic_backup_inventory_requires_admin(self):
+        directory = Path(self.temp.name) / "automatic"
+        self.db.daily_backup(directory)
+        with self.assertRaises(PermissionError):
+            self.service.automatic_backup_inventory(directory, self.user["id"])
+
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        backups = self.service.automatic_backup_inventory(directory, admin["id"])
+
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0]["integrity"], "ok")
+
     def test_system_diagnostics_requires_admin_and_summarizes_data(self):
         with self.assertRaises(PermissionError):
             self.service.system_diagnostics(self.user["id"])

@@ -144,8 +144,23 @@ Sicherung entsteht erst danach in der laufenden Datenbank. Programmeinstellungen
 und Google-Zugangsdaten sind nicht enthalten und müssen getrennt gesichert werden.
 Die Sicherung ist nicht verschlüsselt und enthält personenbezogene Daten:
 Sie sollte ausschließlich an einem geschützten Speicherort abgelegt werden.
-Eine automatische Wiederherstellung oder automatische Sicherungsplanung ist
-noch nicht implementiert.
+Beim Programmstart wird standardmäßig höchstens eine automatische Sicherung pro
+Kalendertag im lokalen Unterordner `backups` erstellt. Im Administrationsbereich
+können Zielordner, Aktivierung und Aufbewahrungsanzahl angepasst werden. Nach
+einer erfolgreichen Sicherung werden nur ältere Dateien mit dem eindeutigen
+Namensmuster `timesheet-auto-YYYYMMDD.db` über der gewählten Grenze entfernt;
+andere Dateien bleiben unangetastet. Standardmäßig werden 14 Sicherungen
+aufbewahrt. Fehler beim Backup verhindern den Programmstart nicht und werden im
+Administrationsbereich angezeigt.
+
+Über **Sicherungen anzeigen** können Administratoren alle automatisch erzeugten
+Sicherungen des konfigurierten Ordners chronologisch prüfen. Die Anwendung zeigt
+Datum, Dateiname, Größe und das Ergebnis einer aktuellen SQLite-Integritätsprüfung.
+Nicht lesbare Sicherungen werden deutlich gekennzeichnet, aber weder automatisch
+gelöscht noch überschrieben. Das angezeigte Inventar kann als CSV-Datei exportiert
+werden, beispielsweise für eine regelmäßige betriebliche Sicherungskontrolle.
+
+Eine automatische Wiederherstellung ist noch nicht implementiert.
 
 Über **Systemdiagnose** steht Administratoren außerdem eine schreibgeschützte
 Zustandsübersicht zur Verfügung. Sie prüft die SQLite-Integrität und
@@ -174,6 +189,7 @@ betroffenen Datenbank erstellt und fachkundig geprüft werden.
 - fehlgeschlagene Google-Sheets-Übertragungen mit Fehlermeldung und nächstem
   Versuch einsehen und einzeln erneut anstoßen
 - lokale Systemdiagnose für Datenbank, Antragsbestand und Sync-Warteschlange
+- automatische Sicherungen mit Integritätsübersicht und CSV-Inventar kontrollieren
 - Monatsauswertung je Mitarbeiter
 - gesamte erfasste Arbeitszeit
 - Überstunden- beziehungsweise Minusstundensaldo
@@ -534,7 +550,7 @@ Aktuell geprüft werden:
 - [x] individuell konfigurierbarer Urlaubssaldo
 - [ ] grafische Trends und Warnungsanalyse
 - [ ] revisionsfähige Änderungsverläufe
-- [ ] automatische Backups
+- [x] automatische Backups
 - [ ] konfigurierbare Datenaufbewahrung
 - [ ] Diagnose- und Supportpakete ohne personenbezogene Geheimnisse
 - [ ] signierte Windows-Pakete und Updateprozess
@@ -576,7 +592,8 @@ Nutzen, Datenschutz und Wartungsaufwand priorisiert werden.
 - Branchenspezifische Ausnahmen oder tarifliche Abweichungen von der allgemeinen
   Ruhezeit werden nicht automatisch bewertet.
 - Es gibt noch keinen Windows-Installer.
-- SQLite-Dateien werden noch nicht automatisch gesichert.
+- Automatische Sicherungen sind nicht verschlüsselt; der Zielordner muss daher
+  angemessen gegen unbefugten Zugriff geschützt werden.
 
 ## Mitwirken
 
