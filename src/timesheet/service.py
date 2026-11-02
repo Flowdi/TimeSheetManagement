@@ -148,6 +148,10 @@ class TimeSheetService:
             )
         return target
 
+    def automatic_backup_inventory(self, directory, admin_id: int):
+        self._require_admin(admin_id)
+        return self.db.automatic_backups(directory)
+
     def _require_admin(self, user_id: int):
         role = self.db.scalar(
             "SELECT role FROM users WHERE id=? AND active=1", (user_id,)
