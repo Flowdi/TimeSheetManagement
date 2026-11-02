@@ -153,6 +153,13 @@ andere Dateien bleiben unangetastet. Standardmäßig werden 14 Sicherungen
 aufbewahrt. Fehler beim Backup verhindern den Programmstart nicht und werden im
 Administrationsbereich angezeigt.
 
+Über **Sicherungen anzeigen** können Administratoren alle automatisch erzeugten
+Sicherungen des konfigurierten Ordners chronologisch prüfen. Die Anwendung zeigt
+Datum, Dateiname, Größe und das Ergebnis einer aktuellen SQLite-Integritätsprüfung.
+Nicht lesbare Sicherungen werden deutlich gekennzeichnet, aber weder automatisch
+gelöscht noch überschrieben. Das angezeigte Inventar kann als CSV-Datei exportiert
+werden, beispielsweise für eine regelmäßige betriebliche Sicherungskontrolle.
+
 Eine automatische Wiederherstellung ist noch nicht implementiert.
 
 Über **Systemdiagnose** steht Administratoren außerdem eine schreibgeschützte
@@ -182,6 +189,7 @@ betroffenen Datenbank erstellt und fachkundig geprüft werden.
 - fehlgeschlagene Google-Sheets-Übertragungen mit Fehlermeldung und nächstem
   Versuch einsehen und einzeln erneut anstoßen
 - lokale Systemdiagnose für Datenbank, Antragsbestand und Sync-Warteschlange
+- automatische Sicherungen mit Integritätsübersicht und CSV-Inventar kontrollieren
 - Monatsauswertung je Mitarbeiter
 - gesamte erfasste Arbeitszeit
 - Überstunden- beziehungsweise Minusstundensaldo
