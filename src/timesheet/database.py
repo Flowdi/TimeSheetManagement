@@ -191,6 +191,30 @@ class Database:
             removed.append(path)
         return removed
 
+    @staticmethod
+    def automatic_backups(directory: Path | str):
+        backups = []
+        for path in Path(directory).glob("timesheet-auto-*.db"):
+            try:
+                backup_date = datetime.strptime(
+                    path.stem.removeprefix("timesheet-auto-"), "%Y%m%d"
+                ).date()
+            except ValueError:
+                continue
+            try:
+                with closing(sqlite3.connect(path)) as connection:
+                    integrity = connection.execute("PRAGMA quick_check").fetchone()[0]
+            except sqlite3.DatabaseError:
+                integrity = "unreadable"
+            backups.append({
+                "path": path,
+                "name": path.name,
+                "backup_date": backup_date,
+                "size_bytes": path.stat().st_size,
+                "integrity": integrity,
+            })
+        return sorted(backups, key=lambda item: item["backup_date"], reverse=True)
+
     def diagnostics(self) -> dict:
         with self.connect() as connection:
             integrity = connection.execute("PRAGMA quick_check").fetchone()[0]

@@ -69,6 +69,27 @@ class DatabaseBackupTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.db.prune_daily_backups(self.root, retain=0)
 
+    def test_automatic_backup_inventory_reports_integrity_and_ignores_other_files(self):
+        directory = self.root / "automatic"
+        self.db.daily_backup(directory, date(2026, 10, 29))
+        self.db.daily_backup(directory, date(2026, 10, 30))
+        (directory / "timesheet-auto-invalid.db").write_text("ignorieren", encoding="utf-8")
+        (directory / "timesheet-auto-20261028.db").write_text("defekt", encoding="utf-8")
+
+        backups = self.db.automatic_backups(directory)
+
+        self.assertEqual(
+            [item["name"] for item in backups],
+            [
+                "timesheet-auto-20261030.db",
+                "timesheet-auto-20261029.db",
+                "timesheet-auto-20261028.db",
+            ],
+        )
+        self.assertEqual(backups[0]["integrity"], "ok")
+        self.assertGreater(backups[0]["size_bytes"], 0)
+        self.assertEqual(backups[2]["integrity"], "unreadable")
+
     def test_database_diagnostics_report_integrity_and_size(self):
         result = self.db.diagnostics()
         self.assertEqual(result["integrity"], "ok")
