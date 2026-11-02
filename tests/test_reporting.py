@@ -3,12 +3,14 @@ from __future__ import annotations
 import csv
 import io
 import unittest
+from datetime import date
 
 from timesheet.reporting import (
     ANNUAL_REPORT_HEADERS,
     REPORT_HEADERS,
     annual_report_csv,
     audit_entries_csv,
+    backup_inventory_csv,
     monthly_report_csv,
     system_diagnostics_text,
 )
@@ -86,6 +88,26 @@ class ReportingTests(unittest.TestCase):
         rows = list(csv.reader(io.StringIO(content), delimiter=";"))
         self.assertEqual(rows[0], ["Zeitpunkt", "Akteur", "Aktion", "Details"])
         self.assertEqual(rows[1][2], "Passwort zurückgesetzt")
+
+    def test_backup_inventory_csv_formats_health_status(self):
+        content = backup_inventory_csv([
+            {
+                "backup_date": date(2026, 10, 30),
+                "name": "timesheet-auto-20261030.db",
+                "size_bytes": 4096,
+                "integrity": "ok",
+            },
+            {
+                "backup_date": date(2026, 10, 29),
+                "name": "timesheet-auto-20261029.db",
+                "size_bytes": 12,
+                "integrity": "unreadable",
+            },
+        ])
+        rows = list(csv.reader(io.StringIO(content), delimiter=";"))
+        self.assertEqual(rows[0], ["Datum", "Dateiname", "Größe (Bytes)", "Integrität"])
+        self.assertEqual(rows[1], ["2026-10-30", "timesheet-auto-20261030.db", "4096", "OK"])
+        self.assertEqual(rows[2][-1], "Nicht lesbar")
 
     def test_system_diagnostics_text_formats_health_summary(self):
         content = system_diagnostics_text({

@@ -112,6 +112,21 @@ def audit_entries_csv(entries) -> str:
     return output.getvalue()
 
 
+def backup_inventory_csv(backups) -> str:
+    output = io.StringIO(newline="")
+    writer = csv.writer(output, delimiter=";", lineterminator="\r\n")
+    writer.writerow(("Datum", "Dateiname", "Größe (Bytes)", "Integrität"))
+    for backup in backups:
+        integrity = "OK" if backup["integrity"] == "ok" else "Nicht lesbar"
+        writer.writerow((
+            backup["backup_date"].isoformat(),
+            backup["name"],
+            backup["size_bytes"],
+            integrity,
+        ))
+    return output.getvalue()
+
+
 def system_diagnostics_text(diagnostics) -> str:
     """Format system diagnostics for display or a future support export."""
     sync = diagnostics["sync"]
