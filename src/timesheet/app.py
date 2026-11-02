@@ -15,6 +15,7 @@ from .google_gateway import GoogleConfig, GoogleGateway, automatic_sync_ready
 from .reporting import (
     annual_report_csv,
     audit_entries_csv,
+    backup_inventory_csv,
     monthly_report_csv,
     system_diagnostics_text,
 )
@@ -630,8 +631,11 @@ class TimeSheetApp(tk.Tk):
         ttk.Button(
             backup_box, text="Speichern und jetzt prüfen", command=save_backup_settings
         ).grid(row=2, column=3, padx=(8, 0))
+        ttk.Button(
+            backup_box, text="Sicherungen anzeigen", command=self.show_automatic_backups
+        ).grid(row=2, column=4, padx=(8, 0))
         backup_status = ttk.Label(backup_box, text=self.backup_status, style="Muted.TLabel")
-        backup_status.grid(row=3, column=0, columnspan=4, sticky="w", pady=(8, 0))
+        backup_status.grid(row=3, column=0, columnspan=5, sticky="w", pady=(8, 0))
         backup_box.columnconfigure(0, weight=1)
         user_box = ttk.LabelFrame(tab, text="Mitarbeiter anlegen", padding=12)
         user_box.pack(fill="x", pady=12)
@@ -829,6 +833,66 @@ class TimeSheetApp(tk.Tk):
             messagebox.showinfo("Datenbanksicherung", f"Sicherung erfolgreich erstellt:\n{target}")
         except Exception as exc:
             messagebox.showerror("Sicherung nicht möglich", str(exc))
+
+    def show_automatic_backups(self):
+        policy = BackupPolicy.from_settings(
+            self.settings.load(), app_data_dir() / "backups"
+        )
+        try:
+            backups = self.service.automatic_backup_inventory(
+                policy.directory, self.user["id"]
+            )
+        except (OSError, ValueError, PermissionError) as exc:
+            messagebox.showerror("Automatische Sicherungen", str(exc))
+            return
+        window = tk.Toplevel(self)
+        window.title("Automatische Sicherungen")
+        window.geometry("780x420")
+        frame = ttk.Frame(window, padding=16)
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text=str(policy.directory), style="Muted.TLabel").pack(
+            anchor="w", pady=(0, 10)
+        )
+        tree = ttk.Treeview(
+            frame, columns=("date", "name", "size", "integrity"), show="headings"
+        )
+        for column, label in (
+            ("date", "Datum"), ("name", "Dateiname"),
+            ("size", "Größe"), ("integrity", "Integrität"),
+        ):
+            tree.heading(column, text=label)
+        tree.pack(fill="both", expand=True)
+        for backup in backups:
+            tree.insert("", "end", values=(
+                backup["backup_date"].strftime("%d.%m.%Y"),
+                backup["name"],
+                f"{backup['size_bytes'] / 1024:.1f} KiB",
+                "OK" if backup["integrity"] == "ok" else "Nicht lesbar",
+            ))
+
+        def export_inventory():
+            destination = filedialog.asksaveasfilename(
+                parent=window,
+                title="Backup-Inventar exportieren",
+                defaultextension=".csv",
+                initialfile=f"backup-inventar-{date.today():%Y%m%d}.csv",
+                filetypes=(("CSV-Dateien", "*.csv"), ("Alle Dateien", "*.*")),
+            )
+            if not destination:
+                return
+            try:
+                Path(destination).write_text(
+                    backup_inventory_csv(backups), encoding="utf-8-sig", newline=""
+                )
+                messagebox.showinfo(
+                    "Backup-Inventar", "Das Backup-Inventar wurde gespeichert.", parent=window
+                )
+            except OSError as exc:
+                messagebox.showerror("Export nicht möglich", str(exc), parent=window)
+
+        ttk.Button(frame, text="Inventar als CSV exportieren", command=export_inventory).pack(
+            anchor="e", pady=(10, 0)
+        )
 
     def show_system_diagnostics(self):
         try:
