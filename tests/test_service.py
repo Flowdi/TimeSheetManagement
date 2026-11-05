@@ -8,6 +8,7 @@ from pathlib import Path
 from timesheet.database import Database
 from timesheet.service import (
     TimeSheetService,
+    break_reminder,
     count_weekdays,
     required_break_minutes,
     rest_period_violations,
@@ -29,6 +30,31 @@ class ServiceTests(unittest.TestCase):
     def test_authentication(self):
         self.assertIsNotNone(self.user)
         self.assertIsNone(self.service.authenticate("anna", "falsch"))
+
+    def test_break_reminder_warns_before_and_after_six_hours(self):
+        events = [{"event_type": "work_start", "occurred_at": "2026-11-02T08:00:00+01:00"}]
+        upcoming = break_reminder(
+            events, datetime.fromisoformat("2026-11-02T13:30:00+01:00")
+        )
+        overdue = break_reminder(
+            events, datetime.fromisoformat("2026-11-02T14:00:00+01:00")
+        )
+        self.assertEqual(upcoming.level, "upcoming")
+        self.assertEqual(upcoming.continuous_minutes, 330)
+        self.assertEqual(overdue.level, "overdue")
+        self.assertEqual(overdue.continuous_minutes, 360)
+
+    def test_break_reminder_resets_during_and_after_break(self):
+        in_break = [
+            {"event_type": "work_start", "occurred_at": "2026-11-02T08:00:00+01:00"},
+            {"event_type": "break_start", "occurred_at": "2026-11-02T13:45:00+01:00"},
+        ]
+        resumed = in_break + [
+            {"event_type": "break_end", "occurred_at": "2026-11-02T14:15:00+01:00"}
+        ]
+        now = datetime.fromisoformat("2026-11-02T14:30:00+01:00")
+        self.assertIsNone(break_reminder(in_break, now))
+        self.assertIsNone(break_reminder(resumed, now))
 
     def test_database_backup_requires_admin_and_is_audited(self):
         target = Path(self.temp.name) / "backup.db"
