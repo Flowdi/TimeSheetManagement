@@ -20,7 +20,13 @@ from .reporting import (
     system_diagnostics_text,
 )
 from .settings import SettingsStore
-from .service import ABSENCE_LABELS, EVENT_LABELS, TimeSheetService, format_minutes
+from .service import (
+    ABSENCE_LABELS,
+    EVENT_LABELS,
+    TimeSheetService,
+    break_reminder,
+    format_minutes,
+)
 
 
 STATUS_LABELS = {"pending": "Offen", "approved": "Genehmigt", "rejected": "Abgelehnt"}
@@ -88,6 +94,7 @@ class TimeSheetApp(tk.Tk):
         self.backup_status = "Automatische Sicherung noch nicht ausgeführt."
         self.run_automatic_backup()
         self.user = None
+        self._shown_break_reminder = None
         self._sync_worker_running = False
         self.style = ttk.Style(self)
         self.style.theme_use("clam")
@@ -99,6 +106,7 @@ class TimeSheetApp(tk.Tk):
         else:
             self.show_first_run()
         self.after(2000, self.schedule_sync_retries)
+        self.after(10000, self.check_break_reminder)
 
     def run_automatic_backup(self):
         policy = BackupPolicy.from_settings(
@@ -328,6 +336,7 @@ class TimeSheetApp(tk.Tk):
     def show_login(self):
         self.clear()
         self.user = None
+        self._shown_break_reminder = None
         frame = ttk.Frame(self, padding=40)
         frame.place(relx=.5, rely=.45, anchor="center")
         ttk.Label(frame, text="TimeSheet Management", style="Title.TLabel").grid(row=0, column=0, columnspan=2, pady=(0, 25))
@@ -435,6 +444,29 @@ class TimeSheetApp(tk.Tk):
             style="Action.TButton",
         ).grid(row=5, column=0, columnspan=2, sticky="w", pady=(20, 0))
 
+        reminder_enabled = tk.BooleanVar(
+            value=self.settings.load().get("break_reminders_enabled", True)
+        )
+
+        def save_reminder_setting():
+            self.settings.update(break_reminders_enabled=reminder_enabled.get())
+            self._shown_break_reminder = None
+
+        ttk.Separator(tab, orient="horizontal").grid(
+            row=7, column=0, columnspan=2, sticky="ew", pady=(28, 16)
+        )
+        ttk.Checkbutton(
+            tab,
+            text="Pausenerinnerungen anzeigen",
+            variable=reminder_enabled,
+            command=save_reminder_setting,
+        ).grid(row=8, column=0, columnspan=2, sticky="w")
+        ttk.Label(
+            tab,
+            text="Hinweis nach 5:30 Stunden, dringende Erinnerung ab 6 Stunden ohne Pause.",
+            style="Muted.TLabel",
+        ).grid(row=9, column=0, columnspan=2, sticky="w", pady=(5, 0))
+
     def build_time_tab(self):
         tab = self.time_tab
         ttk.Label(tab, text="Heutiger Arbeitstag", style="Title.TLabel").pack(anchor="w")
@@ -468,6 +500,26 @@ class TimeSheetApp(tk.Tk):
             return
         self.clock_label.configure(text=datetime.now().strftime("%d.%m.%Y  %H:%M:%S"))
         self.after(1000, self.tick)
+
+    def check_break_reminder(self):
+        try:
+            if not self.user or not self.settings.load().get("break_reminders_enabled", True):
+                self._shown_break_reminder = None
+                return
+            reminder = break_reminder(
+                self.service.events_for_day(self.user["id"], date.today())
+            )
+            if reminder is None:
+                self._shown_break_reminder = None
+                return
+            reminder_key = (self.user["id"], date.today(), reminder.level)
+            if reminder_key == self._shown_break_reminder:
+                return
+            self._shown_break_reminder = reminder_key
+            title = "Pause bald einplanen" if reminder.level == "upcoming" else "Pause erforderlich"
+            messagebox.showwarning(title, reminder.message)
+        finally:
+            self.after(60000, self.check_break_reminder)
 
     def do_event(self, kind):
         try:
