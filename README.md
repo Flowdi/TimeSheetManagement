@@ -66,9 +66,16 @@ festgelegten betrieblichen Rahmenbedingungen:
 - bei mehr als sechs bis einschließlich neun Stunden mindestens 30 Minuten Pause
 - bei mehr als neun Stunden mindestens 45 Minuten Pause
 - Warnung bei einem ununterbrochenen Arbeitsblock von mehr als sechs Stunden
+- optionale Bildschirm-Erinnerung nach 5 Stunden 30 Minuten ununterbrochener
+  Arbeit und erneute dringende Erinnerung ab 6 Stunden
 - Warnung bei mehr als zehn Stunden täglicher Arbeitszeit
 - Warnung bei weniger als elf Stunden Ruhezeit zwischen Arbeitsende und dem
   nächsten Arbeitsbeginn
+
+Pausenerinnerungen sind standardmäßig aktiv und können von jedem angemeldeten
+Benutzer unter **Mein Konto** deaktiviert werden. Pro Arbeitsblock erscheint jede
+Warnstufe nur einmal. Eine gebuchte Pause setzt die Erinnerung zurück; nach dem
+Pausenende beginnt die Messung des neuen ununterbrochenen Arbeitsblocks erneut.
 
 Für den festgelegten Arbeitsort Augsburg berücksichtigt die Monatsauswertung
 automatisch die gesetzlichen Feiertage in Bayern, Mariä Himmelfahrt sowie das
@@ -536,7 +543,7 @@ Aktuell geprüft werden:
 - [x] Krankheit als Abwesenheitstyp
 - [ ] weitere Abwesenheitstypen
 - [ ] halbe Urlaubstage
-- [ ] Pausenerinnerungen
+- [x] Pausenerinnerungen
 - [x] Ruhezeitprüfung zwischen Arbeitstagen
 - [ ] Ausgleichszeitraum für längere Arbeitstage
 - [ ] Überstundenkonten mit Freigabegrenzen
@@ -591,6 +598,9 @@ Nutzen, Datenschutz und Wartungsaufwand priorisiert werden.
   Arbeitsunfähigkeitsbescheinigungs-Workflow.
 - Branchenspezifische Ausnahmen oder tarifliche Abweichungen von der allgemeinen
   Ruhezeit werden nicht automatisch bewertet.
+- Pausenerinnerungen erscheinen nur, solange die Anwendung läuft und ein Benutzer
+  angemeldet ist. Sie ersetzen weder die eigene Pausenplanung noch eine
+  arbeitsrechtliche Prüfung.
 - Es gibt noch keinen Windows-Installer.
 - Automatische Sicherungen sind nicht verschlüsselt; der Zielordner muss daher
   angemessen gegen unbefugten Zugriff geschützt werden.
