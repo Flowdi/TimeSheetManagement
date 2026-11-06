@@ -19,6 +19,7 @@ from .reporting import (
     monthly_report_csv,
     system_diagnostics_text,
 )
+from .reminder_settings import BreakReminderSettings
 from .settings import SettingsStore
 from .service import (
     ABSENCE_LABELS,
@@ -444,12 +445,25 @@ class TimeSheetApp(tk.Tk):
             style="Action.TButton",
         ).grid(row=5, column=0, columnspan=2, sticky="w", pady=(20, 0))
 
-        reminder_enabled = tk.BooleanVar(
-            value=self.settings.load().get("break_reminders_enabled", True)
-        )
+        reminder_settings = BreakReminderSettings.from_settings(self.settings.load())
+        reminder_enabled = tk.BooleanVar(value=reminder_settings.enabled)
+        reminder_notice = tk.IntVar(value=reminder_settings.notice_minutes)
 
         def save_reminder_setting():
-            self.settings.update(break_reminders_enabled=reminder_enabled.get())
+            try:
+                notice = reminder_notice.get()
+            except (ValueError, tk.TclError):
+                notice = 0
+            if not 5 <= notice <= 60:
+                messagebox.showerror(
+                    "Pausenerinnerungen",
+                    "Der Vorwarnzeitraum muss zwischen 5 und 60 Minuten liegen.",
+                )
+                return
+            self.settings.update(
+                break_reminders_enabled=reminder_enabled.get(),
+                break_reminder_notice_minutes=notice,
+            )
             self._shown_break_reminder = None
 
         ttk.Separator(tab, orient="horizontal").grid(
@@ -459,13 +473,21 @@ class TimeSheetApp(tk.Tk):
             tab,
             text="Pausenerinnerungen anzeigen",
             variable=reminder_enabled,
-            command=save_reminder_setting,
         ).grid(row=8, column=0, columnspan=2, sticky="w")
+        ttk.Label(tab, text="Vorwarnung vor 6 Stunden (Minuten)").grid(
+            row=9, column=0, sticky="w", pady=(10, 0)
+        )
+        ttk.Spinbox(
+            tab, from_=5, to=60, increment=5, width=8, textvariable=reminder_notice
+        ).grid(row=9, column=1, sticky="w", padx=(18, 0), pady=(10, 0))
+        ttk.Button(
+            tab, text="Erinnerungseinstellungen speichern", command=save_reminder_setting
+        ).grid(row=10, column=0, columnspan=2, sticky="w", pady=(12, 0))
         ttk.Label(
             tab,
-            text="Hinweis nach 5:30 Stunden, dringende Erinnerung ab 6 Stunden ohne Pause.",
+            text="Die dringende Erinnerung erscheint immer ab 6 Stunden ohne Pause.",
             style="Muted.TLabel",
-        ).grid(row=9, column=0, columnspan=2, sticky="w", pady=(5, 0))
+        ).grid(row=11, column=0, columnspan=2, sticky="w", pady=(5, 0))
 
     def build_time_tab(self):
         tab = self.time_tab
@@ -477,7 +499,9 @@ class TimeSheetApp(tk.Tk):
         self.summary_label = ttk.Label(tab, font=("Segoe UI", 12))
         self.summary_label.pack(anchor="w", pady=5)
         self.warning_label = ttk.Label(tab, style="Warning.TLabel")
-        self.warning_label.pack(anchor="w", pady=(5, 20))
+        self.warning_label.pack(anchor="w", pady=(5, 8))
+        self.break_reminder_label = ttk.Label(tab, style="Muted.TLabel")
+        self.break_reminder_label.pack(anchor="w", pady=(0, 20))
         self.time_sync_label = ttk.Label(
             tab, text="Google Sheets: wartet auf eine Buchung", style="Muted.TLabel"
         )
@@ -503,15 +527,30 @@ class TimeSheetApp(tk.Tk):
 
     def check_break_reminder(self):
         try:
-            if not self.user or not self.settings.load().get("break_reminders_enabled", True):
+            reminder_settings = BreakReminderSettings.from_settings(self.settings.load())
+            if not self.user or not reminder_settings.enabled:
                 self._shown_break_reminder = None
+                if hasattr(self, "break_reminder_label") and self.break_reminder_label.winfo_exists():
+                    self.break_reminder_label.configure(
+                        text="Pausenerinnerungen sind deaktiviert.", style="Muted.TLabel"
+                    )
                 return
             reminder = break_reminder(
-                self.service.events_for_day(self.user["id"], date.today())
+                self.service.events_for_day(self.user["id"], date.today()),
+                upcoming_notice_minutes=reminder_settings.notice_minutes,
             )
             if reminder is None:
                 self._shown_break_reminder = None
+                if hasattr(self, "break_reminder_label") and self.break_reminder_label.winfo_exists():
+                    self.break_reminder_label.configure(
+                        text=f"Pausenerinnerung aktiv · Vorwarnung {reminder_settings.notice_minutes} Minuten vor der 6-Stunden-Grenze.",
+                        style="Muted.TLabel",
+                    )
                 return
+            if hasattr(self, "break_reminder_label") and self.break_reminder_label.winfo_exists():
+                self.break_reminder_label.configure(
+                    text=reminder.message, style="Warning.TLabel"
+                )
             reminder_key = (self.user["id"], date.today(), reminder.level)
             if reminder_key == self._shown_break_reminder:
                 return
