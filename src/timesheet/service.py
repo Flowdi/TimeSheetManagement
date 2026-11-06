@@ -51,7 +51,15 @@ class BreakReminder:
     message: str
 
 
-def break_reminder(events, now: datetime | None = None) -> BreakReminder | None:
+def break_reminder(
+    events, now: datetime | None = None, upcoming_notice_minutes: int = 30
+) -> BreakReminder | None:
+    try:
+        upcoming_notice_minutes = int(upcoming_notice_minutes)
+    except (TypeError, ValueError) as error:
+        raise ValueError("Der Vorwarnzeitraum muss eine ganze Zahl sein.") from error
+    if not 5 <= upcoming_notice_minutes <= 60:
+        raise ValueError("Der Vorwarnzeitraum muss zwischen 5 und 60 Minuten liegen.")
     now = now or datetime.now().astimezone()
     block_started = None
     for event in events:
@@ -69,11 +77,11 @@ def break_reminder(events, now: datetime | None = None) -> BreakReminder | None:
             continuous_minutes,
             "Seit mindestens 6 Stunden wurde keine Pause gebucht. Bitte jetzt pausieren.",
         )
-    if continuous_minutes >= 5 * 60 + 30:
+    if continuous_minutes >= 6 * 60 - upcoming_notice_minutes:
         return BreakReminder(
             "upcoming",
             continuous_minutes,
-            "In spätestens 30 Minuten sollte eine Pause beginnen.",
+            f"In spätestens {upcoming_notice_minutes} Minuten sollte eine Pause beginnen.",
         )
     return None
 

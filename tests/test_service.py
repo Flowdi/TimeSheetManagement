@@ -56,6 +56,19 @@ class ServiceTests(unittest.TestCase):
         self.assertIsNone(break_reminder(in_break, now))
         self.assertIsNone(break_reminder(resumed, now))
 
+    def test_break_reminder_supports_validated_custom_notice(self):
+        events = [{"event_type": "work_start", "occurred_at": "2026-11-02T08:00:00+01:00"}]
+        before = datetime.fromisoformat("2026-11-02T13:44:00+01:00")
+        threshold = datetime.fromisoformat("2026-11-02T13:45:00+01:00")
+        self.assertIsNone(break_reminder(events, before, upcoming_notice_minutes=15))
+        self.assertEqual(
+            break_reminder(events, threshold, upcoming_notice_minutes=15).level,
+            "upcoming",
+        )
+        for invalid in (4, 61, "viel"):
+            with self.assertRaises(ValueError):
+                break_reminder(events, threshold, upcoming_notice_minutes=invalid)
+
     def test_database_backup_requires_admin_and_is_audited(self):
         target = Path(self.temp.name) / "backup.db"
         with self.assertRaises(PermissionError):
