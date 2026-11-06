@@ -44,6 +44,48 @@ class RestViolation:
     rest_minutes: int
 
 
+@dataclass(frozen=True)
+class BreakReminder:
+    level: str
+    continuous_minutes: int
+    message: str
+
+
+def break_reminder(
+    events, now: datetime | None = None, upcoming_notice_minutes: int = 30
+) -> BreakReminder | None:
+    try:
+        upcoming_notice_minutes = int(upcoming_notice_minutes)
+    except (TypeError, ValueError) as error:
+        raise ValueError("Der Vorwarnzeitraum muss eine ganze Zahl sein.") from error
+    if not 5 <= upcoming_notice_minutes <= 60:
+        raise ValueError("Der Vorwarnzeitraum muss zwischen 5 und 60 Minuten liegen.")
+    now = now or datetime.now().astimezone()
+    block_started = None
+    for event in events:
+        occurred = datetime.fromisoformat(event["occurred_at"])
+        if event["event_type"] in {"work_start", "break_end"}:
+            block_started = occurred
+        elif event["event_type"] in {"break_start", "work_end"}:
+            block_started = None
+    if block_started is None:
+        return None
+    continuous_minutes = max(0, int((now - block_started).total_seconds() // 60))
+    if continuous_minutes >= 6 * 60:
+        return BreakReminder(
+            "overdue",
+            continuous_minutes,
+            "Seit mindestens 6 Stunden wurde keine Pause gebucht. Bitte jetzt pausieren.",
+        )
+    if continuous_minutes >= 6 * 60 - upcoming_notice_minutes:
+        return BreakReminder(
+            "upcoming",
+            continuous_minutes,
+            f"In spätestens {upcoming_notice_minutes} Minuten sollte eine Pause beginnen.",
+        )
+    return None
+
+
 def required_break_minutes(work_minutes: int) -> int:
     if work_minutes > 9 * 60:
         return 45
