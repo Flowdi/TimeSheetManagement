@@ -61,7 +61,7 @@ festgelegten betrieblichen Rahmenbedingungen:
 
 - Sollzeit Montag bis Freitag
 - regulärer Zeitrahmen von 08:00 bis 16:30 Uhr
-- acht Stunden Soll-Arbeitszeit
+- acht Stunden tägliche Soll-Arbeitszeit als Standardwert
 - 30 Minuten unbezahlte Regelpause
 - bei mehr als sechs bis einschließlich neun Stunden mindestens 30 Minuten Pause
 - bei mehr als neun Stunden mindestens 45 Minuten Pause
@@ -71,6 +71,12 @@ festgelegten betrieblichen Rahmenbedingungen:
 - Warnung bei mehr als zehn Stunden täglicher Arbeitszeit
 - Warnung bei weniger als elf Stunden Ruhezeit zwischen Arbeitsende und dem
   nächsten Arbeitsbeginn
+
+Administratoren können die tägliche Sollzeit für jedes Mitarbeiterkonto im
+Format `HH:MM` individuell festlegen. Der Wert wirkt auf den laufenden
+Tagessaldo, synchronisierte Google-Sheet-Zeilen sowie Monats- und
+Jahresauswertungen. Bestehende und neue Konten verwenden zunächst `08:00`.
+Jede Änderung wird im Audit-Verlauf protokolliert.
 
 Pausenerinnerungen sind standardmäßig aktiv und können von jedem angemeldeten
 Benutzer unter **Mein Konto** deaktiviert werden. Der Vorwarnzeitraum vor der
@@ -191,6 +197,7 @@ betroffenen Datenbank erstellt und fachkundig geprüft werden.
 - Mitarbeiterkonten deaktivieren und später wieder aktivieren
 - Mitarbeiterkonten nach Bestätigung zu Administratoren befördern oder wieder
   zu Mitarbeitern herabstufen
+- tägliche Sollzeit je Mitarbeiter im Format `HH:MM` verwalten
 - jährlichen Urlaubsanspruch pro Mitarbeiter verwalten; neue Konten beginnen
   mit einem Standardanspruch von 30 Tagen
 - Änderungen am Urlaubsanspruch mit ausführendem Administrator im Audit-Verlauf
@@ -543,7 +550,7 @@ Aktuell geprüft werden:
 ### Phase 3 – erweiterte Zeitwirtschaft
 
 - [ ] unterschiedliche Wochenmodelle und Teilzeit
-- [ ] individuelle Sollstunden
+- [x] individuelle tägliche Sollstunden
 - [x] Feiertagskalender für den festgelegten Arbeitsort Augsburg
 - [x] Krankheit als Abwesenheitstyp
 - [ ] weitere Abwesenheitstypen
@@ -591,7 +598,9 @@ Nutzen, Datenschutz und Wartungsaufwand priorisiert werden.
   im Sheet werden nicht zurückgelesen.
 - Die Warteschlange speichert den letzten Fehler und die Anzahl der Versuche,
   besitzt aber noch keine eigene Detailtabelle in der Oberfläche.
-- Sollstunden sind noch fest auf acht Stunden pro Arbeitstag ausgelegt.
+- Die individuelle Sollzeit gilt derzeit einheitlich für alle Arbeitstage eines
+  Mitarbeiters. Unterschiedliche Werte je Wochentag oder zeitlich befristete
+  Teilzeitmodelle sind noch nicht abbildbar.
 - Der Feiertagskalender ist derzeit fest auf Augsburg eingestellt und noch nicht
   pro Mitarbeiter oder Arbeitsort konfigurierbar.
 - Zeitkorrekturen nehmen für die Pause eine mittige Position im Arbeitstag an.
