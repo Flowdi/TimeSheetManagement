@@ -180,6 +180,27 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(entry["action"], "vacation_allowance_changed")
         self.assertIn("28 Tage", entry["details"])
 
+    def test_admin_can_change_daily_target_and_change_is_audited(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+
+        self.service.set_daily_target_minutes(self.user["id"], 450, admin["id"])
+
+        employee = next(row for row in self.service.list_users() if row["id"] == self.user["id"])
+        self.assertEqual(employee["daily_target_minutes"], 450)
+        entry = self.service.list_audit_entries(admin["id"])[0]
+        self.assertEqual(entry["action"], "daily_target_changed")
+        self.assertIn("07:30 h", entry["details"])
+
+    def test_daily_target_requires_admin_and_valid_minutes(self):
+        with self.assertRaises(PermissionError):
+            self.service.set_daily_target_minutes(self.user["id"], 450, self.user["id"])
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        for value in (0, 1441, "acht"):
+            with self.assertRaises(ValueError):
+                self.service.set_daily_target_minutes(self.user["id"], value, admin["id"])
+
     def test_vacation_allowance_requires_admin_and_valid_range(self):
         with self.assertRaises(PermissionError):
             self.service.set_vacation_allowance(self.user["id"], 28, self.user["id"])

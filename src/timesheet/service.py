@@ -282,9 +282,42 @@ class TimeSheetService:
 
     def list_users(self):
         return self.db.rows(
-            """SELECT id,username,display_name,role,active,annual_vacation_days
+            """SELECT id,username,display_name,role,active,annual_vacation_days,
+                      daily_target_minutes
                FROM users ORDER BY display_name"""
         )
+
+    def set_daily_target_minutes(self, target_user_id: int, minutes: int, admin_id: int):
+        self._require_admin(admin_id)
+        try:
+            minutes = int(minutes)
+        except (TypeError, ValueError) as error:
+            raise ValueError("Die tägliche Sollzeit muss als ganze Minutenzahl angegeben werden.") from error
+        if not 1 <= minutes <= 1440:
+            raise ValueError("Die tägliche Sollzeit muss zwischen 1 und 1440 Minuten liegen.")
+        with self.db.connect() as con:
+            result = con.execute(
+                """UPDATE users SET daily_target_minutes=?
+                   WHERE id=? AND daily_target_minutes<>?""",
+                (minutes, target_user_id, minutes),
+            )
+            if result.rowcount != 1:
+                exists = con.execute(
+                    "SELECT 1 FROM users WHERE id=?", (target_user_id,)
+                ).fetchone()
+                if not exists:
+                    raise ValueError("Benutzerkonto nicht gefunden.")
+                raise ValueError("Diese tägliche Sollzeit ist bereits eingetragen.")
+            con.execute(
+                """INSERT INTO audit_log(actor_user_id,action,details,created_at)
+                   VALUES(?,?,?,?)""",
+                (
+                    admin_id,
+                    "daily_target_changed",
+                    f"Benutzer #{target_user_id}: tägliche Sollzeit auf {format_minutes(minutes)} gesetzt",
+                    self.db.now(),
+                ),
+            )
 
     def set_vacation_allowance(self, target_user_id: int, days: int, admin_id: int):
         self._require_admin(admin_id)
