@@ -38,6 +38,7 @@ AUDIT_ACTION_LABELS = {
     "user_status_changed": "Kontostatus geändert",
     "user_role_changed": "Benutzerrolle geändert",
     "vacation_allowance_changed": "Urlaubsanspruch geändert",
+    "daily_target_changed": "Tägliche Sollzeit geändert",
     "time_event": "Zeitbuchung",
     "absence_requested": "Abwesenheit beantragt",
     "absence_reviewed": "Abwesenheit geprüft",
@@ -49,6 +50,16 @@ AUDIT_ACTION_LABELS = {
 
 def audit_action_label(action: str) -> str:
     return AUDIT_ACTION_LABELS.get(action, action)
+
+
+def parse_target_time(value: str) -> int:
+    match = re.fullmatch(r"(\d{1,2}):([0-5]\d)", value.strip())
+    if not match:
+        raise ValueError("Bitte die Sollzeit im Format HH:MM eingeben, zum Beispiel 07:30.")
+    minutes = int(match.group(1)) * 60 + int(match.group(2))
+    if not 1 <= minutes <= 1440:
+        raise ValueError("Die tägliche Sollzeit muss zwischen 00:01 und 24:00 liegen.")
+    return minutes
 
 THEMES = {
     "dark": {
@@ -832,7 +843,7 @@ class TimeSheetApp(tk.Tk):
         users_frame.pack(fill="x", pady=(0, 12))
         self.user_tree = ttk.Treeview(
             users_frame,
-            columns=("username", "name", "role", "vacation", "status"),
+            columns=("username", "name", "role", "target", "vacation", "status"),
             show="headings",
             height=5,
         )
@@ -840,6 +851,7 @@ class TimeSheetApp(tk.Tk):
             ("username", "Benutzername"),
             ("name", "Anzeigename"),
             ("role", "Rolle"),
+            ("target", "Tägl. Sollzeit"),
             ("vacation", "Jahresurlaub"),
             ("status", "Status"),
         ):
@@ -861,6 +873,10 @@ class TimeSheetApp(tk.Tk):
         ttk.Button(
             users_frame, text="Urlaubsanspruch ändern",
             command=self.change_selected_vacation_allowance,
+        ).pack(anchor="w", pady=(6, 0))
+        ttk.Button(
+            users_frame, text="Tägliche Sollzeit ändern",
+            command=self.change_selected_daily_target,
         ).pack(anchor="w", pady=(6, 0))
         panes = ttk.Panedwindow(tab, orient="horizontal"); panes.pack(fill="both",expand=True)
         absence_frame=ttk.LabelFrame(panes,text="Offene Abwesenheiten",padding=8); correction_frame=ttk.LabelFrame(panes,text="Offene Korrekturen",padding=8)
@@ -1029,6 +1045,7 @@ class TimeSheetApp(tk.Tk):
                     user["username"],
                     user["display_name"],
                     "Administrator" if user["role"] == "admin" else "Mitarbeiter",
+                    format_minutes(user["daily_target_minutes"]),
                     f"{user['annual_vacation_days']} Tage",
                     "Aktiv" if user["active"] else "Deaktiviert",
                 ),
@@ -1168,6 +1185,31 @@ class TimeSheetApp(tk.Tk):
             self.service.set_vacation_allowance(user_id, days, self.user["id"])
             self.refresh_admin()
             messagebox.showinfo("Urlaubsanspruch", "Der Urlaubsanspruch wurde gespeichert.")
+        except Exception as exc:
+            messagebox.showerror("Nicht möglich", str(exc))
+
+    def change_selected_daily_target(self):
+        selection = self.user_tree.selection()
+        if not selection:
+            messagebox.showinfo("Tägliche Sollzeit", "Bitte zuerst ein Konto auswählen.")
+            return
+        user_id = int(selection[0])
+        user = next(row for row in self.service.list_users() if row["id"] == user_id)
+        minutes = user["daily_target_minutes"]
+        value = simpledialog.askstring(
+            "Tägliche Sollzeit ändern",
+            f"Tägliche Sollzeit für {user['display_name']} (HH:MM):",
+            initialvalue=f"{minutes // 60:02d}:{minutes % 60:02d}",
+            parent=self,
+        )
+        if value is None:
+            return
+        try:
+            self.service.set_daily_target_minutes(
+                user_id, parse_target_time(value), self.user["id"]
+            )
+            self.refresh_admin()
+            messagebox.showinfo("Tägliche Sollzeit", "Die tägliche Sollzeit wurde gespeichert.")
         except Exception as exc:
             messagebox.showerror("Nicht möglich", str(exc))
 

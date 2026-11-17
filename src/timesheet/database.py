@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
     role TEXT NOT NULL CHECK(role IN ('employee', 'admin')),
     active INTEGER NOT NULL DEFAULT 1,
     annual_vacation_days INTEGER NOT NULL DEFAULT 30 CHECK(annual_vacation_days BETWEEN 0 AND 365),
+    daily_target_minutes INTEGER NOT NULL DEFAULT 480 CHECK(daily_target_minutes BETWEEN 1 AND 1440),
     created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS time_events (
@@ -86,6 +87,10 @@ class Database:
             if "annual_vacation_days" not in user_columns:
                 connection.execute(
                     "ALTER TABLE users ADD COLUMN annual_vacation_days INTEGER NOT NULL DEFAULT 30"
+                )
+            if "daily_target_minutes" not in user_columns:
+                connection.execute(
+                    "ALTER TABLE users ADD COLUMN daily_target_minutes INTEGER NOT NULL DEFAULT 480"
                 )
             absence_schema = connection.execute(
                 "SELECT sql FROM sqlite_master WHERE type='table' AND name='absence_requests'"

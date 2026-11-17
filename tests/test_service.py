@@ -180,6 +180,27 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(entry["action"], "vacation_allowance_changed")
         self.assertIn("28 Tage", entry["details"])
 
+    def test_admin_can_change_daily_target_and_change_is_audited(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+
+        self.service.set_daily_target_minutes(self.user["id"], 450, admin["id"])
+
+        employee = next(row for row in self.service.list_users() if row["id"] == self.user["id"])
+        self.assertEqual(employee["daily_target_minutes"], 450)
+        entry = self.service.list_audit_entries(admin["id"])[0]
+        self.assertEqual(entry["action"], "daily_target_changed")
+        self.assertIn("07:30 h", entry["details"])
+
+    def test_daily_target_requires_admin_and_valid_minutes(self):
+        with self.assertRaises(PermissionError):
+            self.service.set_daily_target_minutes(self.user["id"], 450, self.user["id"])
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        for value in (0, 1441, "acht"):
+            with self.assertRaises(ValueError):
+                self.service.set_daily_target_minutes(self.user["id"], value, admin["id"])
+
     def test_vacation_allowance_requires_admin_and_valid_range(self):
         with self.assertRaises(PermissionError):
             self.service.set_vacation_allowance(self.user["id"], 28, self.user["id"])
@@ -527,6 +548,29 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(annual["vacation_allowance_days"], 28)
         self.assertEqual(annual["vacation_days"], 5)
         self.assertEqual(annual["vacation_remaining_days"], 23)
+
+    def test_individual_daily_target_changes_balances_and_monthly_target(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.set_daily_target_minutes(self.user["id"], 450, admin["id"])
+        for kind, stamp in (
+            ("work_start", "2026-01-07T08:00:00+01:00"),
+            ("work_end", "2026-01-07T16:00:00+01:00"),
+        ):
+            self.service.record_event(self.user["id"], kind, datetime.fromisoformat(stamp))
+
+        events = self.service.events_for_day(self.user["id"], date(2026, 1, 7))
+        summary = summarize_events(
+            events,
+            datetime.fromisoformat("2026-01-07T16:00:00+01:00"),
+            target_minutes=self.service.daily_target_minutes(self.user["id"]),
+        )
+        report = next(
+            row for row in self.service.report(2026, 1) if row["user_id"] == self.user["id"]
+        )
+        self.assertEqual(summary.overtime_minutes, 30)
+        self.assertEqual(report["daily_target_minutes"], 450)
+        self.assertEqual(report["target_minutes"], report["scheduled_days"] * 450)
 
     def test_approved_vacation_does_not_double_count_statutory_holiday(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")

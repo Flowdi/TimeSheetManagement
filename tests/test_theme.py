@@ -6,6 +6,7 @@ from timesheet.app import (
     THEMES,
     TimeSheetApp,
     audit_action_label,
+    parse_target_time,
 )
 
 
@@ -40,7 +41,19 @@ class ThemeTests(unittest.TestCase):
             audit_action_label("vacation_allowance_changed"),
             "Urlaubsanspruch geändert",
         )
+        self.assertEqual(
+            audit_action_label("daily_target_changed"),
+            "Tägliche Sollzeit geändert",
+        )
         self.assertEqual(audit_action_label("future_action"), "future_action")
+
+    def test_daily_target_time_parser(self):
+        self.assertEqual(parse_target_time("07:30"), 450)
+        self.assertEqual(parse_target_time("8:00"), 480)
+        self.assertEqual(parse_target_time("24:00"), 1440)
+        for value in ("", "7.5", "07:60", "00:00", "25:00"):
+            with self.assertRaises(ValueError):
+                parse_target_time(value)
 
     def test_both_themes_have_required_colors(self):
         required = {"bg", "surface", "surface_alt", "text", "muted", "accent", "accent_hover", "selected", "danger"}

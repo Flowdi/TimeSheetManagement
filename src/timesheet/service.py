@@ -121,7 +121,9 @@ def rest_period_violations(events, minimum_minutes: int = 11 * 60):
     return tuple(violations)
 
 
-def summarize_events(events, now: datetime | None = None) -> DaySummary:
+def summarize_events(
+    events, now: datetime | None = None, target_minutes: int = 8 * 60
+) -> DaySummary:
     now = now or datetime.now().astimezone()
     work = 0
     breaks = 0
@@ -170,7 +172,7 @@ def summarize_events(events, now: datetime | None = None) -> DaySummary:
         warnings.append("Mehr als 6 Stunden ohne Pause")
     if work > 10 * 60:
         warnings.append("Mehr als 10 Stunden Arbeitszeit")
-    return DaySummary(work, breaks, work - 8 * 60, required, tuple(warnings))
+    return DaySummary(work, breaks, work - target_minutes, required, tuple(warnings))
 
 
 class TimeSheetService:
@@ -282,9 +284,42 @@ class TimeSheetService:
 
     def list_users(self):
         return self.db.rows(
-            """SELECT id,username,display_name,role,active,annual_vacation_days
+            """SELECT id,username,display_name,role,active,annual_vacation_days,
+                      daily_target_minutes
                FROM users ORDER BY display_name"""
         )
+
+    def set_daily_target_minutes(self, target_user_id: int, minutes: int, admin_id: int):
+        self._require_admin(admin_id)
+        try:
+            minutes = int(minutes)
+        except (TypeError, ValueError) as error:
+            raise ValueError("Die tägliche Sollzeit muss als ganze Minutenzahl angegeben werden.") from error
+        if not 1 <= minutes <= 1440:
+            raise ValueError("Die tägliche Sollzeit muss zwischen 1 und 1440 Minuten liegen.")
+        with self.db.connect() as con:
+            result = con.execute(
+                """UPDATE users SET daily_target_minutes=?
+                   WHERE id=? AND daily_target_minutes<>?""",
+                (minutes, target_user_id, minutes),
+            )
+            if result.rowcount != 1:
+                exists = con.execute(
+                    "SELECT 1 FROM users WHERE id=?", (target_user_id,)
+                ).fetchone()
+                if not exists:
+                    raise ValueError("Benutzerkonto nicht gefunden.")
+                raise ValueError("Diese tägliche Sollzeit ist bereits eingetragen.")
+            con.execute(
+                """INSERT INTO audit_log(actor_user_id,action,details,created_at)
+                   VALUES(?,?,?,?)""",
+                (
+                    admin_id,
+                    "daily_target_changed",
+                    f"Benutzer #{target_user_id}: tägliche Sollzeit auf {format_minutes(minutes)} gesetzt",
+                    self.db.now(),
+                ),
+            )
 
     def set_vacation_allowance(self, target_user_id: int, days: int, admin_id: int):
         self._require_admin(admin_id)
@@ -409,7 +444,7 @@ class TimeSheetService:
         events = self.events_for_day(user_id, day)
         if not events:
             raise ValueError("Für diesen Tag sind keine Arbeitszeiten vorhanden.")
-        summary = summarize_events(events)
+        summary = summarize_events(events, target_minutes=self.daily_target_minutes(user_id))
         first_start = next(
             (row for row in events if row["event_type"] == "work_start"), None
         )
@@ -582,7 +617,15 @@ class TimeSheetService:
 
     def current_state(self, user_id: int):
         events = self.events_for_day(user_id, date.today())
-        return (events[-1]["event_type"] if events else None), summarize_events(events)
+        return (events[-1]["event_type"] if events else None), summarize_events(
+            events, target_minutes=self.daily_target_minutes(user_id)
+        )
+
+    def daily_target_minutes(self, user_id: int) -> int:
+        target = self.db.scalar("SELECT daily_target_minutes FROM users WHERE id=?", (user_id,))
+        if target is None:
+            raise ValueError("Benutzerkonto nicht gefunden.")
+        return int(target)
 
     def request_absence(self, user_id, absence_type, start_date, end_date, reason=""):
         self._require_active_user(user_id)
@@ -772,7 +815,14 @@ class TimeSheetService:
             grouped = {}
             for row in rows:
                 grouped.setdefault(row["occurred_at"][:10], []).append(row)
-            summaries = [summarize_events(events, datetime.fromisoformat(day + "T23:59:59").astimezone()) for day, events in grouped.items()]
+            summaries = [
+                summarize_events(
+                    events,
+                    datetime.fromisoformat(day + "T23:59:59").astimezone(),
+                    user["daily_target_minutes"],
+                )
+                for day, events in grouped.items()
+            ]
             absence_days = self._approved_absence_weekdays_by_type(
                 user["id"], year, month
             )
@@ -799,12 +849,15 @@ class TimeSheetService:
                 - len(holiday_dates)
             )
             absence_total = sum(absence_days.values())
-            target_minutes = max(0, scheduled_days - absence_total) * 8 * 60
+            target_minutes = (
+                max(0, scheduled_days - absence_total) * user["daily_target_minutes"]
+            )
             work_minutes = sum(s.work_minutes for s in summaries)
             result.append({
                 "user_id": user["id"],
                 "display_name": user["display_name"],
                 "vacation_allowance_days": user["annual_vacation_days"],
+                "daily_target_minutes": user["daily_target_minutes"],
                 "work_minutes": work_minutes,
                 "overtime_minutes": sum(s.overtime_minutes for s in summaries),
                 "scheduled_days": scheduled_days,
@@ -853,6 +906,7 @@ class TimeSheetService:
                         "user_id": monthly["user_id"],
                         "display_name": monthly["display_name"],
                         "vacation_allowance_days": monthly["vacation_allowance_days"],
+                        "daily_target_minutes": monthly["daily_target_minutes"],
                         **{field: 0 for field in summed_fields},
                     },
                 )
