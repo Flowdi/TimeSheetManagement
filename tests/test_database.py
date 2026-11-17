@@ -97,7 +97,7 @@ class DatabaseBackupTests(unittest.TestCase):
         self.assertIn(result["journal_mode"], {"delete", "wal", "memory"})
         self.assertGreater(result["size_bytes"], 0)
 
-    def test_existing_users_receive_default_vacation_allowance(self):
+    def test_existing_users_receive_default_allowances(self):
         legacy_path = self.root / "legacy.db"
         with closing(sqlite3.connect(legacy_path)) as connection:
             connection.execute(
@@ -114,10 +114,12 @@ class DatabaseBackupTests(unittest.TestCase):
         migrated = Database(legacy_path)
 
         with migrated.connect() as connection:
-            allowance = connection.execute(
-                "SELECT annual_vacation_days FROM users WHERE id=1"
-            ).fetchone()[0]
-        self.assertEqual(allowance, 30)
+            user = connection.execute(
+                """SELECT annual_vacation_days,daily_target_minutes
+                   FROM users WHERE id=1"""
+            ).fetchone()
+        self.assertEqual(user["annual_vacation_days"], 30)
+        self.assertEqual(user["daily_target_minutes"], 480)
 
     def test_existing_absence_requests_survive_sick_leave_migration(self):
         legacy_path = self.root / "legacy-absence.db"
