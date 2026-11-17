@@ -549,6 +549,29 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(annual["vacation_days"], 5)
         self.assertEqual(annual["vacation_remaining_days"], 23)
 
+    def test_individual_daily_target_changes_balances_and_monthly_target(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.set_daily_target_minutes(self.user["id"], 450, admin["id"])
+        for kind, stamp in (
+            ("work_start", "2026-01-07T08:00:00+01:00"),
+            ("work_end", "2026-01-07T16:00:00+01:00"),
+        ):
+            self.service.record_event(self.user["id"], kind, datetime.fromisoformat(stamp))
+
+        events = self.service.events_for_day(self.user["id"], date(2026, 1, 7))
+        summary = summarize_events(
+            events,
+            datetime.fromisoformat("2026-01-07T16:00:00+01:00"),
+            target_minutes=self.service.daily_target_minutes(self.user["id"]),
+        )
+        report = next(
+            row for row in self.service.report(2026, 1) if row["user_id"] == self.user["id"]
+        )
+        self.assertEqual(summary.overtime_minutes, 30)
+        self.assertEqual(report["daily_target_minutes"], 450)
+        self.assertEqual(report["target_minutes"], report["scheduled_days"] * 450)
+
     def test_approved_vacation_does_not_double_count_statutory_holiday(self):
         self.service.create_user("admin", "Admin", "Sicher123!", "admin")
         admin = self.service.authenticate("admin", "Sicher123!")
