@@ -536,6 +536,7 @@ class TimeSheetService:
     def record_event(self, user_id: int, event_type: str, occurred_at: datetime | None = None):
         self._require_active_user(user_id)
         occurred_at = occurred_at or datetime.now().astimezone()
+        self._require_open_day(occurred_at.date())
         day = occurred_at.date().isoformat()
         events = self.events_for_day(user_id, occurred_at.date())
         last = events[-1]["event_type"] if events else None
@@ -676,6 +677,26 @@ class TimeSheetService:
             raise ValueError("Benutzerkonto nicht gefunden.")
         return int(target)
 
+    def _require_open_day(self, day: date):
+        if self.db.scalar(
+            "SELECT COUNT(*) FROM period_closures WHERE year=? AND month=?",
+            (day.year, day.month),
+        ):
+            raise ValueError(
+                f"Der Zeitraum {day.year:04d}-{day.month:02d} ist abgeschlossen."
+            )
+
+    def _require_open_range(self, start: date, end: date):
+        current = date(start.year, start.month, 1)
+        last = date(end.year, end.month, 1)
+        while current <= last:
+            self._require_open_day(current)
+            current = date(
+                current.year + (current.month == 12),
+                1 if current.month == 12 else current.month + 1,
+                1,
+            )
+
     def request_absence(self, user_id, absence_type, start_date, end_date, reason=""):
         self._require_active_user(user_id)
         if absence_type not in ABSENCE_LABELS:
@@ -727,6 +748,17 @@ class TimeSheetService:
         if status not in {"approved", "rejected"}:
             raise ValueError("Ungültiger Status")
         with self.db.connect() as con:
+            request = con.execute(
+                "SELECT start_date,end_date FROM absence_requests WHERE id=? AND status='pending'",
+                (request_id,),
+            ).fetchone()
+            if not request:
+                raise ValueError("Antrag nicht mehr offen.")
+            if status == "approved":
+                self._require_open_range(
+                    date.fromisoformat(request["start_date"]),
+                    date.fromisoformat(request["end_date"]),
+                )
             result = con.execute(
                 "UPDATE absence_requests SET status=?,reviewed_by=?,reviewed_at=? WHERE id=? AND status='pending'",
                 (status, admin_id, self.db.now(), request_id),
@@ -741,6 +773,7 @@ class TimeSheetService:
     def request_correction(self, user_id, work_date, start, end, break_minutes, reason):
         self._require_active_user(user_id)
         work_day = date.fromisoformat(work_date)
+        self._require_open_day(work_day)
         start_time = time.fromisoformat(start)
         end_time = time.fromisoformat(end)
         start_at = datetime.combine(work_day, start_time)
@@ -810,6 +843,8 @@ class TimeSheetService:
         if not rows:
             raise ValueError("Antrag nicht mehr offen.")
         row = rows[0]
+        if status == "approved":
+            self._require_open_day(date.fromisoformat(row["work_date"]))
         with self.db.connect() as con:
             con.execute(
                 "UPDATE correction_requests SET status=?,reviewed_by=?,reviewed_at=? WHERE id=?",
