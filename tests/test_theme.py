@@ -45,6 +45,10 @@ class ThemeTests(unittest.TestCase):
             audit_action_label("daily_target_changed"),
             "Tägliche Sollzeit geändert",
         )
+        self.assertEqual(audit_action_label("period_closed"), "Monat abgeschlossen")
+        self.assertEqual(
+            audit_action_label("period_reopened"), "Monat wieder geöffnet"
+        )
         self.assertEqual(audit_action_label("future_action"), "future_action")
 
     def test_daily_target_time_parser(self):
