@@ -225,11 +225,26 @@ betroffenen Datenbank erstellt und fachkundig geprüft werden.
 - Urlaubsanspruch, genehmigte genommene Urlaubstage und rechnerischen Resturlaub
   in der Jahresübersicht gegenüberstellen
 - CSV-Export der vollständigen Jahresübersicht für die weitere Auswertung
+- ausgewählten Monat nach Prüfung abschließen und bei Bedarf auditiert wieder
+  öffnen
 
 Die Jahresübersicht wird über den gleichnamigen Button in der Monatsauswertung
 geöffnet und verwendet das dort ausgewählte Jahr. Sie summiert ausschließlich
 die bereits lokal gespeicherten Daten und verändert keine Zeitbuchungen oder
 Anträge.
+
+### Monatsabschluss
+
+Administratoren können den in der Monatsauswertung ausgewählten Zeitraum über
+**Monat abschließen** sperren. Danach verhindert die Service-Schicht neue
+Zeitbuchungen und Korrekturanträge für diesen Monat sowie die Genehmigung von
+Abwesenheiten oder Korrekturen, die den Zeitraum verändern würden. Ablehnungen
+bleiben möglich, damit offene Anträge bereinigt werden können. Status,
+verantwortlicher Administrator und Abschlusszeitpunkt werden angezeigt.
+
+Eine Wiederöffnung erfordert eine ausdrückliche Bestätigung. Abschluss und
+Wiederöffnung werden als eigene Aktionen im Audit-Verlauf dokumentiert. Der
+Monatsabschluss löscht oder verändert keine bestehenden Buchungen.
 
 Administrationsentscheidungen werden zusätzlich in der Service-Schicht geprüft:
 Nur aktive Administratorkonten dürfen Abwesenheiten oder Zeitkorrekturen
@@ -559,7 +574,7 @@ Aktuell geprüft werden:
 - [x] Ruhezeitprüfung zwischen Arbeitstagen
 - [ ] Ausgleichszeitraum für längere Arbeitstage
 - [ ] Überstundenkonten mit Freigabegrenzen
-- [ ] Monatsabschluss und Sperrung abgeschlossener Perioden
+- [x] Monatsabschluss und Sperrung abgeschlossener Perioden
 
 ### Phase 4 – Berichte und Betrieb
 
@@ -606,6 +621,8 @@ Nutzen, Datenschutz und Wartungsaufwand priorisiert werden.
 - Zeitkorrekturen nehmen für die Pause eine mittige Position im Arbeitstag an.
 - Monatsauswertungen berücksichtigen derzeit erfasste Arbeitstage und genehmigte
   Abwesenheiten, aber noch keinen vollständigen Sollstundenkalender.
+- Monatsabschlüsse gelten derzeit zentral für alle Mitarbeiter. Mehrstufige
+  Freigaben oder getrennte Abschlüsse je Mitarbeiter sind noch nicht vorgesehen.
 - Das Urlaubskonto berücksichtigt noch keinen Übertrag oder Verfall von
   Resturlaub aus Vorjahren und keine unterjährigen Anspruchsänderungen.
 - Für Krankheit gibt es noch keinen separaten Nachweis- oder
