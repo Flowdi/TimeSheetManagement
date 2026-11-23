@@ -201,6 +201,30 @@ class ServiceTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.service.set_daily_target_minutes(self.user["id"], value, admin["id"])
 
+    def test_admin_can_close_and_reopen_month_with_audit_entries(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        with self.assertRaises(PermissionError):
+            self.service.set_period_closed(2026, 10, True, self.user["id"])
+
+        self.service.set_period_closed(2026, 10, True, admin["id"])
+        closure = self.service.period_closure(2026, 10)
+        self.assertEqual(closure["closed_by_name"], "Admin")
+        self.service.set_period_closed(2026, 10, False, admin["id"])
+
+        self.assertIsNone(self.service.period_closure(2026, 10))
+        actions = [entry["action"] for entry in self.service.list_audit_entries(admin["id"])]
+        self.assertEqual(actions[:2], ["period_reopened", "period_closed"])
+
+    def test_month_closure_rejects_duplicate_state_and_invalid_period(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.set_period_closed(2026, 10, True, admin["id"])
+        with self.assertRaisesRegex(ValueError, "bereits abgeschlossen"):
+            self.service.set_period_closed(2026, 10, True, admin["id"])
+        with self.assertRaisesRegex(ValueError, "zwischen 1 und 12"):
+            self.service.period_closure(2026, 13)
+
     def test_vacation_allowance_requires_admin_and_valid_range(self):
         with self.assertRaises(PermissionError):
             self.service.set_vacation_allowance(self.user["id"], 28, self.user["id"])

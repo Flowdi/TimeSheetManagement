@@ -321,6 +321,55 @@ class TimeSheetService:
                 ),
             )
 
+    @staticmethod
+    def _validate_period(year: int, month: int):
+        try:
+            year, month = int(year), int(month)
+        except (TypeError, ValueError) as error:
+            raise ValueError("Jahr und Monat müssen als Zahlen angegeben werden.") from error
+        if not 1 <= year <= 9998:
+            raise ValueError("Das Jahr muss zwischen 1 und 9998 liegen.")
+        if not 1 <= month <= 12:
+            raise ValueError("Der Monat muss zwischen 1 und 12 liegen.")
+        return year, month
+
+    def period_closure(self, year: int, month: int):
+        year, month = self._validate_period(year, month)
+        rows = self.db.rows(
+            """SELECT p.*,u.display_name AS closed_by_name
+               FROM period_closures p JOIN users u ON u.id=p.closed_by
+               WHERE p.year=? AND p.month=?""",
+            (year, month),
+        )
+        return rows[0] if rows else None
+
+    def set_period_closed(self, year: int, month: int, closed: bool, admin_id: int):
+        self._require_admin(admin_id)
+        year, month = self._validate_period(year, month)
+        with self.db.connect() as con:
+            existing = con.execute(
+                "SELECT 1 FROM period_closures WHERE year=? AND month=?", (year, month)
+            ).fetchone()
+            if closed:
+                if existing:
+                    raise ValueError("Dieser Monat ist bereits abgeschlossen.")
+                con.execute(
+                    "INSERT INTO period_closures(year,month,closed_by,closed_at) VALUES(?,?,?,?)",
+                    (year, month, admin_id, self.db.now()),
+                )
+                action, detail = "period_closed", "abgeschlossen"
+            else:
+                if not existing:
+                    raise ValueError("Dieser Monat ist nicht abgeschlossen.")
+                con.execute(
+                    "DELETE FROM period_closures WHERE year=? AND month=?", (year, month)
+                )
+                action, detail = "period_reopened", "wieder geöffnet"
+            con.execute(
+                "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
+                (admin_id, action, f"Zeitraum {year:04d}-{month:02d} {detail}", self.db.now()),
+            )
+
     def set_vacation_allowance(self, target_user_id: int, days: int, admin_id: int):
         self._require_admin(admin_id)
         try:
