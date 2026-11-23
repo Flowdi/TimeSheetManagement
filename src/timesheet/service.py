@@ -321,6 +321,55 @@ class TimeSheetService:
                 ),
             )
 
+    @staticmethod
+    def _validate_period(year: int, month: int):
+        try:
+            year, month = int(year), int(month)
+        except (TypeError, ValueError) as error:
+            raise ValueError("Jahr und Monat müssen als Zahlen angegeben werden.") from error
+        if not 1 <= year <= 9998:
+            raise ValueError("Das Jahr muss zwischen 1 und 9998 liegen.")
+        if not 1 <= month <= 12:
+            raise ValueError("Der Monat muss zwischen 1 und 12 liegen.")
+        return year, month
+
+    def period_closure(self, year: int, month: int):
+        year, month = self._validate_period(year, month)
+        rows = self.db.rows(
+            """SELECT p.*,u.display_name AS closed_by_name
+               FROM period_closures p JOIN users u ON u.id=p.closed_by
+               WHERE p.year=? AND p.month=?""",
+            (year, month),
+        )
+        return rows[0] if rows else None
+
+    def set_period_closed(self, year: int, month: int, closed: bool, admin_id: int):
+        self._require_admin(admin_id)
+        year, month = self._validate_period(year, month)
+        with self.db.connect() as con:
+            existing = con.execute(
+                "SELECT 1 FROM period_closures WHERE year=? AND month=?", (year, month)
+            ).fetchone()
+            if closed:
+                if existing:
+                    raise ValueError("Dieser Monat ist bereits abgeschlossen.")
+                con.execute(
+                    "INSERT INTO period_closures(year,month,closed_by,closed_at) VALUES(?,?,?,?)",
+                    (year, month, admin_id, self.db.now()),
+                )
+                action, detail = "period_closed", "abgeschlossen"
+            else:
+                if not existing:
+                    raise ValueError("Dieser Monat ist nicht abgeschlossen.")
+                con.execute(
+                    "DELETE FROM period_closures WHERE year=? AND month=?", (year, month)
+                )
+                action, detail = "period_reopened", "wieder geöffnet"
+            con.execute(
+                "INSERT INTO audit_log(actor_user_id,action,details,created_at) VALUES(?,?,?,?)",
+                (admin_id, action, f"Zeitraum {year:04d}-{month:02d} {detail}", self.db.now()),
+            )
+
     def set_vacation_allowance(self, target_user_id: int, days: int, admin_id: int):
         self._require_admin(admin_id)
         try:
@@ -487,6 +536,7 @@ class TimeSheetService:
     def record_event(self, user_id: int, event_type: str, occurred_at: datetime | None = None):
         self._require_active_user(user_id)
         occurred_at = occurred_at or datetime.now().astimezone()
+        self._require_open_day(occurred_at.date())
         day = occurred_at.date().isoformat()
         events = self.events_for_day(user_id, occurred_at.date())
         last = events[-1]["event_type"] if events else None
@@ -627,6 +677,26 @@ class TimeSheetService:
             raise ValueError("Benutzerkonto nicht gefunden.")
         return int(target)
 
+    def _require_open_day(self, day: date):
+        if self.db.scalar(
+            "SELECT COUNT(*) FROM period_closures WHERE year=? AND month=?",
+            (day.year, day.month),
+        ):
+            raise ValueError(
+                f"Der Zeitraum {day.year:04d}-{day.month:02d} ist abgeschlossen."
+            )
+
+    def _require_open_range(self, start: date, end: date):
+        current = date(start.year, start.month, 1)
+        last = date(end.year, end.month, 1)
+        while current <= last:
+            self._require_open_day(current)
+            current = date(
+                current.year + (current.month == 12),
+                1 if current.month == 12 else current.month + 1,
+                1,
+            )
+
     def request_absence(self, user_id, absence_type, start_date, end_date, reason=""):
         self._require_active_user(user_id)
         if absence_type not in ABSENCE_LABELS:
@@ -678,6 +748,17 @@ class TimeSheetService:
         if status not in {"approved", "rejected"}:
             raise ValueError("Ungültiger Status")
         with self.db.connect() as con:
+            request = con.execute(
+                "SELECT start_date,end_date FROM absence_requests WHERE id=? AND status='pending'",
+                (request_id,),
+            ).fetchone()
+            if not request:
+                raise ValueError("Antrag nicht mehr offen.")
+            if status == "approved":
+                self._require_open_range(
+                    date.fromisoformat(request["start_date"]),
+                    date.fromisoformat(request["end_date"]),
+                )
             result = con.execute(
                 "UPDATE absence_requests SET status=?,reviewed_by=?,reviewed_at=? WHERE id=? AND status='pending'",
                 (status, admin_id, self.db.now(), request_id),
@@ -692,6 +773,7 @@ class TimeSheetService:
     def request_correction(self, user_id, work_date, start, end, break_minutes, reason):
         self._require_active_user(user_id)
         work_day = date.fromisoformat(work_date)
+        self._require_open_day(work_day)
         start_time = time.fromisoformat(start)
         end_time = time.fromisoformat(end)
         start_at = datetime.combine(work_day, start_time)
@@ -761,6 +843,8 @@ class TimeSheetService:
         if not rows:
             raise ValueError("Antrag nicht mehr offen.")
         row = rows[0]
+        if status == "approved":
+            self._require_open_day(date.fromisoformat(row["work_date"]))
         with self.db.connect() as con:
             con.execute(
                 "UPDATE correction_requests SET status=?,reviewed_by=?,reviewed_at=? WHERE id=?",

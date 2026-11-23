@@ -45,6 +45,8 @@ AUDIT_ACTION_LABELS = {
     "correction_requested": "Zeitkorrektur beantragt",
     "correction_reviewed": "Zeitkorrektur geprüft",
     "database_backup": "Datenbank gesichert",
+    "period_closed": "Monat abgeschlossen",
+    "period_reopened": "Monat wieder geöffnet",
 }
 
 
@@ -1243,6 +1245,7 @@ class TimeSheetApp(tk.Tk):
         controls=ttk.Frame(tab); controls.pack(fill="x",pady=15)
         month=ttk.Spinbox(controls,from_=1,to=12,width=5); month.set(date.today().month); month.pack(side="left")
         year=ttk.Spinbox(controls,from_=2024,to=2100,width=7); year.set(date.today().year); year.pack(side="left",padx=8)
+        closure_status = ttk.Label(controls, style="Muted.TLabel")
         self.report_tree=ttk.Treeview(
             tab,
             columns=("name","work","scheduled","statutory_holidays","target","month_balance","overtime","absence","vacation","holiday","reduction","sick","rest","warnings"),
@@ -1269,9 +1272,20 @@ class TimeSheetApp(tk.Tk):
         def refresh():
             try:
                 rows = self.service.report(year.get(), month.get())
+                closure = self.service.period_closure(year.get(), month.get())
             except (TypeError, ValueError) as exc:
                 messagebox.showerror("Auswertung nicht möglich", str(exc))
                 return
+            if closure:
+                closed_at = datetime.fromisoformat(closure["closed_at"]).strftime("%d.%m.%Y %H:%M")
+                closure_status.configure(
+                    text=f"Abgeschlossen von {closure['closed_by_name']} am {closed_at}",
+                    style="Warning.TLabel",
+                )
+                closure_button.configure(text="Monat wieder öffnen")
+            else:
+                closure_status.configure(text="Monat ist offen", style="Muted.TLabel")
+                closure_button.configure(text="Monat abschließen")
             for item in self.report_tree.get_children(): self.report_tree.delete(item)
             for row in rows:
                 self.report_tree.insert(
@@ -1295,6 +1309,33 @@ class TimeSheetApp(tk.Tk):
                     ),
                 )
             return rows
+
+        def toggle_period_closure():
+            try:
+                closure = self.service.period_closure(year.get(), month.get())
+                period = f"{int(year.get()):04d}-{int(month.get()):02d}"
+            except (TypeError, ValueError) as exc:
+                messagebox.showerror("Monatsabschluss", str(exc))
+                return
+            action = "wieder öffnen" if closure else "abschließen"
+            explanation = (
+                "Danach sind wieder Zeitbuchungen und Genehmigungen möglich."
+                if closure
+                else "Danach sind keine Zeitbuchungen, genehmigten Abwesenheiten oder Zeitkorrekturen für diesen Monat möglich."
+            )
+            if not messagebox.askyesno(
+                "Monatsabschluss",
+                f"Zeitraum {period} wirklich {action}?\n\n{explanation}",
+            ):
+                return
+            try:
+                self.service.set_period_closed(
+                    year.get(), month.get(), not bool(closure), self.user["id"]
+                )
+                refresh()
+                self.refresh_audit_entries()
+            except Exception as exc:
+                messagebox.showerror("Monatsabschluss nicht möglich", str(exc))
 
         def export_csv():
             rows = refresh()
@@ -1387,6 +1428,9 @@ class TimeSheetApp(tk.Tk):
         ttk.Button(controls,text="Anzeigen",command=refresh).pack(side="left")
         ttk.Button(controls,text="CSV exportieren",command=export_csv).pack(side="left",padx=8)
         ttk.Button(controls,text="Jahresübersicht",command=show_annual).pack(side="left")
+        closure_button = ttk.Button(controls, command=toggle_period_closure)
+        closure_button.pack(side="left", padx=8)
+        closure_status.pack(side="left", padx=(8, 0))
         refresh()
 
 

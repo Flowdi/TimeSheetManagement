@@ -97,6 +97,23 @@ class DatabaseBackupTests(unittest.TestCase):
         self.assertIn(result["journal_mode"], {"delete", "wal", "memory"})
         self.assertGreater(result["size_bytes"], 0)
 
+    def test_period_closure_schema_allows_only_one_entry_per_month(self):
+        with self.db.connect() as connection:
+            user_id = connection.execute(
+                """INSERT INTO users(username,display_name,password_hash,role,created_at)
+                   VALUES('admin','Admin','hash','admin',?)""",
+                (self.db.now(),),
+            ).lastrowid
+            connection.execute(
+                "INSERT INTO period_closures VALUES(2026,10,?,?)",
+                (user_id, self.db.now()),
+            )
+            with self.assertRaises(sqlite3.IntegrityError):
+                connection.execute(
+                    "INSERT INTO period_closures VALUES(2026,10,?,?)",
+                    (user_id, self.db.now()),
+                )
+
     def test_existing_users_receive_default_allowances(self):
         legacy_path = self.root / "legacy.db"
         with closing(sqlite3.connect(legacy_path)) as connection:
