@@ -60,6 +60,13 @@ CREATE TABLE IF NOT EXISTS audit_log (
     details TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS period_closures (
+    year INTEGER NOT NULL CHECK(year BETWEEN 1 AND 9998),
+    month INTEGER NOT NULL CHECK(month BETWEEN 1 AND 12),
+    closed_by INTEGER NOT NULL REFERENCES users(id),
+    closed_at TEXT NOT NULL,
+    PRIMARY KEY(year, month)
+);
 CREATE TABLE IF NOT EXISTS sync_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id),
