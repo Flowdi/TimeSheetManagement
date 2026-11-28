@@ -347,6 +347,7 @@ class TimeSheetService:
         self._require_admin(admin_id)
         year, month = self._validate_period(year, month)
         with self.db.connect() as con:
+            con.execute("BEGIN IMMEDIATE")
             existing = con.execute(
                 "SELECT 1 FROM period_closures WHERE year=? AND month=?", (year, month)
             ).fetchone()
@@ -536,7 +537,6 @@ class TimeSheetService:
     def record_event(self, user_id: int, event_type: str, occurred_at: datetime | None = None):
         self._require_active_user(user_id)
         occurred_at = occurred_at or datetime.now().astimezone()
-        self._require_open_day(occurred_at.date())
         day = occurred_at.date().isoformat()
         events = self.events_for_day(user_id, occurred_at.date())
         last = events[-1]["event_type"] if events else None
@@ -546,6 +546,8 @@ class TimeSheetService:
         elif event_type != expected:
             raise ValueError(f"Aktion nicht möglich. Erwartet: {EVENT_LABELS.get(expected, 'Arbeitsbeginn')}.")
         with self.db.connect() as con:
+            con.execute("BEGIN IMMEDIATE")
+            self._require_open_day(con, occurred_at.date())
             con.execute(
                 "INSERT INTO time_events(user_id,event_type,occurred_at) VALUES(?,?,?)",
                 (user_id, event_type, occurred_at.isoformat(timespec="seconds")),
@@ -677,20 +679,22 @@ class TimeSheetService:
             raise ValueError("Benutzerkonto nicht gefunden.")
         return int(target)
 
-    def _require_open_day(self, day: date):
-        if self.db.scalar(
+    def _require_open_day(self, con, day: date):
+        if con.execute(
             "SELECT COUNT(*) FROM period_closures WHERE year=? AND month=?",
             (day.year, day.month),
-        ):
+        ).fetchone()[0]:
             raise ValueError(
                 f"Der Zeitraum {day.year:04d}-{day.month:02d} ist abgeschlossen."
             )
 
-    def _require_open_range(self, start: date, end: date):
+    def _require_open_range(self, con, start: date, end: date):
         current = date(start.year, start.month, 1)
         last = date(end.year, end.month, 1)
         while current <= last:
-            self._require_open_day(current)
+            self._require_open_day(con, current)
+            if current == last:
+                break
             current = date(
                 current.year + (current.month == 12),
                 1 if current.month == 12 else current.month + 1,
@@ -748,6 +752,7 @@ class TimeSheetService:
         if status not in {"approved", "rejected"}:
             raise ValueError("Ungültiger Status")
         with self.db.connect() as con:
+            con.execute("BEGIN IMMEDIATE")
             request = con.execute(
                 "SELECT start_date,end_date FROM absence_requests WHERE id=? AND status='pending'",
                 (request_id,),
@@ -756,6 +761,7 @@ class TimeSheetService:
                 raise ValueError("Antrag nicht mehr offen.")
             if status == "approved":
                 self._require_open_range(
+                    con,
                     date.fromisoformat(request["start_date"]),
                     date.fromisoformat(request["end_date"]),
                 )
@@ -773,7 +779,6 @@ class TimeSheetService:
     def request_correction(self, user_id, work_date, start, end, break_minutes, reason):
         self._require_active_user(user_id)
         work_day = date.fromisoformat(work_date)
-        self._require_open_day(work_day)
         start_time = time.fromisoformat(start)
         end_time = time.fromisoformat(end)
         start_at = datetime.combine(work_day, start_time)
@@ -792,6 +797,8 @@ class TimeSheetService:
         if not reason.strip():
             raise ValueError("Für die Zeitkorrektur ist eine Begründung erforderlich.")
         with self.db.connect() as con:
+            con.execute("BEGIN IMMEDIATE")
+            self._require_open_day(con, work_day)
             pending = con.execute(
                 """SELECT id FROM correction_requests
                    WHERE user_id=? AND work_date=? AND status='pending'
@@ -839,13 +846,16 @@ class TimeSheetService:
         self._require_admin(admin_id)
         if status not in {"approved", "rejected"}:
             raise ValueError("Ungültiger Status")
-        rows = self.db.rows("SELECT * FROM correction_requests WHERE id=? AND status='pending'", (request_id,))
-        if not rows:
-            raise ValueError("Antrag nicht mehr offen.")
-        row = rows[0]
-        if status == "approved":
-            self._require_open_day(date.fromisoformat(row["work_date"]))
         with self.db.connect() as con:
+            con.execute("BEGIN IMMEDIATE")
+            row = con.execute(
+                "SELECT * FROM correction_requests WHERE id=? AND status='pending'",
+                (request_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("Antrag nicht mehr offen.")
+            if status == "approved":
+                self._require_open_day(con, date.fromisoformat(row["work_date"]))
             con.execute(
                 "UPDATE correction_requests SET status=?,reviewed_by=?,reviewed_at=? WHERE id=?",
                 (status, admin_id, self.db.now(), request_id),
