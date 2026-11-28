@@ -253,6 +253,24 @@ class ServiceTests(unittest.TestCase):
         self.service.review_absence(request["id"], admin["id"], "rejected")
         self.assertEqual(self.service.list_absences(self.user["id"])[0]["status"], "rejected")
 
+    def test_pending_correction_can_only_be_approved_after_reopening(self):
+        self.service.create_user("admin", "Admin", "Sicher123!", "admin")
+        admin = self.service.authenticate("admin", "Sicher123!")
+        self.service.request_correction(
+            self.user["id"], "2026-10-05", "08:00", "16:30", 30, "Nachtrag"
+        )
+        request = self.service.list_corrections(self.user["id"], pending_only=True)[0]
+        self.service.set_period_closed(2026, 10, True, admin["id"])
+
+        with self.assertRaisesRegex(ValueError, "abgeschlossen"):
+            self.service.review_correction(request["id"], admin["id"], "approved")
+        self.assertEqual(self.service.list_corrections(self.user["id"])[0]["status"], "pending")
+        self.assertEqual(self.service.events_for_day(self.user["id"], date(2026, 10, 5)), [])
+
+        self.service.set_period_closed(2026, 10, False, admin["id"])
+        self.service.review_correction(request["id"], admin["id"], "approved")
+        self.assertEqual(len(self.service.events_for_day(self.user["id"], date(2026, 10, 5))), 4)
+
     def test_vacation_allowance_requires_admin_and_valid_range(self):
         with self.assertRaises(PermissionError):
             self.service.set_vacation_allowance(self.user["id"], 28, self.user["id"])
