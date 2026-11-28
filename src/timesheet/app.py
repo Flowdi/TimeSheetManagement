@@ -1358,17 +1358,18 @@ class TimeSheetApp(tk.Tk):
 
         def show_annual():
             try:
-                rows = self.service.annual_report(year.get())
+                report_year = int(year.get())
+                rows = self.service.annual_report(report_year)
             except (TypeError, ValueError) as exc:
                 messagebox.showerror("Jahresübersicht nicht möglich", str(exc))
                 return
             window = tk.Toplevel(self)
-            window.title(f"Jahresübersicht {year.get()}")
+            window.title(f"Jahresübersicht {report_year}")
             window.geometry("1400x420")
             frame = ttk.Frame(window, padding=16)
             frame.pack(fill="both", expand=True)
             ttk.Label(
-                frame, text=f"Jahresübersicht {year.get()}", style="Title.TLabel"
+                frame, text=f"Jahresübersicht {report_year}", style="Title.TLabel"
             ).pack(anchor="w", pady=(0, 12))
             tree = ttk.Treeview(
                 frame,
@@ -1407,13 +1408,13 @@ class TimeSheetApp(tk.Tk):
                     parent=window,
                     title="Jahresübersicht exportieren",
                     defaultextension=".csv",
-                    initialfile=f"zeiterfassung-jahr-{year.get()}.csv",
+                    initialfile=f"zeiterfassung-jahr-{report_year}.csv",
                     filetypes=(("CSV-Dateien", "*.csv"), ("Alle Dateien", "*.*")),
                 )
                 if not path:
                     return
                 try:
-                    content = annual_report_csv(rows, int(year.get()))
+                    content = annual_report_csv(rows, report_year)
                     Path(path).write_text(content, encoding="utf-8-sig", newline="")
                     messagebox.showinfo(
                         "CSV-Export", "Die Jahresübersicht wurde gespeichert.", parent=window
